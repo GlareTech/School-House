@@ -1,2 +1,0 @@
-CREATE UNIQUE NONCLUSTERED INDEX [HostelAllocation_active_student_key] ON [HostelAllocation]([studentId]) WHERE [status] = 'ACTIVE';
-CREATE UNIQUE NONCLUSTERED INDEX [HostelAllocation_active_bed_key] ON [HostelAllocation]([bedId]) WHERE [status] = 'ACTIVE';
