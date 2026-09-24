@@ -7,7 +7,7 @@ const script = process.argv[2];
 if (!['db:generate','db:migrate','db:seed'].includes(script)) throw new Error('Unsupported database command');
 const npmCli = process.env.npm_execpath;
 if (!npmCli) throw new Error('Run through npm scripts');
-const args = [npmCli, 'run', script, '-w', 'backend'];
+const args = [npmCli, '--prefix', 'backend', 'run', script];
 const child = spawn(process.execPath, args, { stdio: 'inherit', env: process.env });
 child.on('exit', code => process.exit(code ?? 1));
 child.on('error', err => { console.error(err.message); process.exit(1); });

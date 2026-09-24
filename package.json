@@ -7,15 +7,15 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "concurrently -k \"npm run dev -w backend\" \"npm run dev -w frontend\"",
-    "build": "npm run db:generate && npm run build -w frontend",
-    "start": "npm start -w backend",
-    "test": "npm test -w backend",
-    "test:integration": "npm run test:integration -w backend",
+    "dev": "concurrently -k \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
+    "build": "npm run db:generate && npm --prefix frontend run build",
+    "start": "npm --prefix backend start",
+    "test": "npm --prefix backend test",
+    "test:integration": "npm --prefix backend run test:integration",
     "db:generate": "node scripts/env-run.mjs db:generate",
     "db:migrate": "node scripts/env-run.mjs db:migrate",
     "db:seed": "node scripts/env-run.mjs db:seed",
-    "check": "npm run check -w backend && npm run build"
+    "check": "npm --prefix backend run check && npm run build"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
