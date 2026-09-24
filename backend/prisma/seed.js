@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { db, redis } from '../src/db.js';
+import { db } from '../src/db.js';
 import { z } from 'zod';
 const input = z.object({ ADMIN_EMAIL: z.string().email(), ADMIN_PASSWORD: z.string().min(16).max(72).refine(v => Buffer.byteLength(v, 'utf8') <= 72, 'Password exceeds 72 UTF-8 bytes'), ADMIN_NAME: z.string().min(1) }).parse(process.env);
 if (/replace_with|change.?me/i.test(input.ADMIN_PASSWORD)) throw new Error('Replace the placeholder administrator password');
@@ -20,4 +20,4 @@ try {
   ];
   for (const role of roles) await db.staffRole.upsert({ where:{name:role.name}, update:{}, create:{name:role.name,description:role.description,grants:{create:role.permissions.map(permission=>({permission}))}} });
   await db.appSetting.upsert({where:{id:'global'},update:{},create:{id:'global'}});
-} finally { await db.$disconnect(); redis.disconnect(); }
+} finally { await db.$disconnect(); }

@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs';
 // This suite must only target a disposable database whose name contains "test".
 const testDatabase = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).pathname : '';
 if (!testDatabase?.includes('test')) throw new Error('Integration tests require an explicit disposable test database');
-const { db, redis } = await import('../src/db.js');
+const { db, cache } = await import('../src/db.js');
 const { createApp } = await import('../src/app.js');
 const { config } = await import('../src/config.js');
 const { expireAttempts } = await import('../src/exams.js');
@@ -26,7 +26,7 @@ async function login(email) {
 }
 const payload = (revision, answers) => ({ expectedRevision: revision, requestId: randomUUID(), answers });
 before(async () => {
-  await db.$connect(); if (redis.status !== 'ready') await new Promise(resolve => redis.once('ready', resolve));
+  await db.$connect();
   classroom = await db.class.create({ data: { name: `Test ${randomUUID()}` } });
   const hash = await bcrypt.hash('integration-password-123', 4);
   const make = role => db.user.create({ data: { email: `${randomUUID()}@test.local`, name: role, role, passwordHash: hash, classId: classroom.id } });
@@ -42,7 +42,7 @@ before(async () => {
 });
 after(async () => {
   if (server) await new Promise(resolve => server.close(resolve));
-  await db.$disconnect(); redis.disconnect();
+  await db.$disconnect();
 });
 test('RBAC and CSRF block unauthorized writes', async () => {
   assert.equal((await request('/admin/classes', sAuth)).status, 403);
@@ -69,7 +69,7 @@ test('concurrent start, answer privacy, idempotent saves, conflict, atomic gradi
   assert.equal((await request(`/exams/attempts/${a.id}/answers`, sAuth, 'POST', body)).body.revision, 1);
   assert.equal((await request(`/exams/attempts/${a.id}/answers`, sAuth, 'POST', body)).body.revision, 1);
   assert.equal((await request(`/exams/attempts/${a.id}/answers`, sAuth, 'POST', payload(0, {}))).status, 409);
-  const cached = JSON.parse(await redis.hget(`attempt:${a.id}`, 'snapshot')); assert.equal(cached.answers[q.id], correct);
+  const cached = JSON.parse(cache.read(`attempt:${a.id}`).snapshot); assert.equal(cached.answers[q.id], correct);
   const submit = payload(1, { [q.id]: correct });
   const results = await Promise.all([request(`/exams/attempts/${a.id}/submit`, sAuth, 'POST', submit), request(`/exams/attempts/${a.id}/submit`, sAuth, 'POST', submit)]);
   assert.equal(results[0].body.status, 'SUBMITTED'); assert.equal(results[0].body.score, null);

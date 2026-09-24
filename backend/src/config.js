@@ -23,8 +23,6 @@ export const config = z.object({
     v => v.startsWith('postgresql://') || v.startsWith('postgres://'),
     'DATABASE_URL must start with postgresql:// or postgres://'
   ),
-  REDIS_URL: z.string().url().default('redis://localhost:6379'),
-  CACHE_BACKEND: z.enum(['redis','memory']).default('redis'),
   PORT: z.coerce.number().int().positive().default(3000),
   APP_ORIGINS: z.string().min(1).transform(v => v.split(',').map(x => new URL(x.trim()).origin)),
   COOKIE_SECURE: bool, COOKIE_SAME_SITE: z.enum(['strict','lax','none']).default('strict'), TRUST_PROXY: z.coerce.number().int().min(0).max(2).default(0),

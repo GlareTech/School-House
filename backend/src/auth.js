@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { db, redis } from './db.js';
+import { db, cache } from './db.js';
 import { config } from './config.js';
 import { HttpError } from './domain.js';
 import { originAllowed } from './settings.js';
@@ -54,9 +54,8 @@ export function authRoutes(app) {
     // Fail closed for new logins if the shared abuse-control store is unavailable.
     const key = `login:${hash(req.ip + ':' + input.email)}`;
     const ipKey = `login-ip:${hash(req.ip)}`;
-    const script = "local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('EXPIRE',KEYS[1],900) end; return n";
     let count, ipCount;
-    try { [count, ipCount] = await Promise.all([redis.eval(script, 1, key), redis.eval(script, 1, ipKey)]); }
+    try { [count, ipCount] = await Promise.all([cache.increment(key, 900000), cache.increment(ipKey, 900000)]); }
     catch { throw new HttpError(503, 'Sign-in temporarily unavailable'); }
     if (count > 12 || ipCount > 150) throw new HttpError(429, 'Too many sign-in attempts; wait 15 minutes');
     const user = await db.user.findUnique({ where: { email: input.email }, include: { staffRole: { include:{grants:true} } } });
@@ -70,7 +69,7 @@ export function authRoutes(app) {
       await tx.user.update({where:{id:user.id},data:{lastLoginAt:new Date()}});
       await tx.auditLog.create({data:{actorId:user.id,action:'auth.login',entityId:user.id}});
     });
-    await redis.del(key);
+    await cache.del(key);
     res.cookie('school_session', token, { ...cookieOptions, expires: expiresAt }).json({ user: publicUser(user), csrf });
   });
   app.get('/api/auth/me', authenticate, (req, res) => res.json({ user: publicUser(req.user), csrf: req.session.csrf }));

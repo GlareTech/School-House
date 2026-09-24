@@ -34,7 +34,7 @@ This review covers authentication, cross-origin access, module controls, file de
 
 ## SaaS deployment boundary
 
-Use HTTPS through the supplied gateway or another trusted reverse proxy. Set the exact public application origin in `APP_ORIGINS` and keep that value under deployment control. A separate cross-site HTTPS frontend may require `COOKIE_SAME_SITE=none` together with `COOKIE_SECURE=true`. Keep database and Redis ports private; publish only the web gateway.
+Use HTTPS through the supplied gateway or another trusted reverse proxy. Set the exact public application origin in `APP_ORIGINS` and keep that value under deployment control. A separate cross-site HTTPS frontend may require `COOKIE_SAME_SITE=none` together with `COOKIE_SECURE=true`. Keep database ports private; publish only the web gateway.
 
 The local preview script intentionally binds to `127.0.0.1`. It is for validation on the server computer and is not a remote-access deployment.
 

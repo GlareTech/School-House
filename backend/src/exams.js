@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { db, redis, enqueue, logger } from './db.js';
+import { db, cache, enqueue, logger } from './db.js';
 import { HttpError, shuffle, grade, validateAnswers, examDeadline } from './domain.js';
 import { lockRow, dbNow } from './provider.js';
 const includeExam = { questions: { include: { options: true } } };
@@ -9,13 +9,11 @@ const saveSchema = z.object({
   answers: z.record(z.string().min(1).max(100), z.string().min(1).max(10000)).refine(a => Object.keys(a).length <= 300)
 }).strict();
 const now = dbNow;
-async function cache(attempt) {
+async function cacheAttemptSnapshot(attempt) {
   const key = `attempt:${attempt.id}`;
-  // Compare revisions so a delayed Redis write can never replace a newer snapshot.
-  const script = `local v=redis.call('HGET',KEYS[1],'revision'); if not v or tonumber(v)<=tonumber(ARGV[1]) then redis.call('HSET',KEYS[1],'revision',ARGV[1],'snapshot',ARGV[2]); redis.call('EXPIRE',KEYS[1],86400); end; return 1`;
-  try { await redis.eval(script, 1, key, attempt.revision, JSON.stringify({
+  try { await cache.saveAttemptSnapshot(key, attempt.revision, JSON.stringify({
     status: attempt.status, answers: Object.fromEntries(attempt.responses.map(r => [r.questionId, r.optionId || r.responseText]))
-  })); } catch { logger.warn({ attemptId: attempt.id }, 'Answer committed; cache unavailable'); }
+  }), 86400000); } catch { logger.warn({ attemptId: attempt.id }, 'Answer committed; local cache unavailable'); }
 }
 export async function finalize(tx, attempt, timestamp) {
   if (attempt.status === 'SUBMITTED') return attempt;
@@ -72,7 +70,7 @@ export async function saveAttempt(id, studentId, input, submit = false) {
     }
     return submit ? finalize(tx, attempt, timestamp) : attempt;
   }, { timeout: 10000 });
-  await cache(result);
+  await cacheAttemptSnapshot(result);
   return result;
 }
 function safeAttempt(a) {

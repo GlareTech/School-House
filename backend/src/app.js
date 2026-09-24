@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { ZodError } from 'zod';
 import { config } from './config.js';
-import { db, redis, logger } from './db.js';
+import { db, logger } from './db.js';
 import { checkOrigin, corsForAllowedOrigins, authRoutes, authenticate } from './auth.js';
 import { examRouter } from './exams.js';
 import { adminRouter } from './admin.js';
@@ -26,7 +26,7 @@ export function createApp(io) {
   });
   app.get('/api/health/live', (req, res) => res.json({ status: 'alive' }));
   app.get('/api/health/ready', async (req, res) => {
-    try { await db.$queryRaw`SELECT 1`; await redis.ping(); res.json({ status: 'ready' }); }
+    try { await db.$queryRaw`SELECT 1`; res.json({ status: 'ready' }); }
     catch { res.status(503).json({ status: 'degraded' }); }
   });
   app.use(corsForAllowedOrigins);

@@ -43,7 +43,6 @@ branch. `apphosting.yaml` supplies the build/run commands and safe runtime defau
 The build generates the Prisma client and the Vite application; the runtime starts
 the combined Express service on the platform-provided `PORT`.
 
-The default App Hosting profile uses an in-process cache, so login throttles are
-per instance. For a scaled production deployment, provision Memorystore, attach
-App Hosting to its VPC, set `CACHE_BACKEND=redis`, and supply `REDIS_URL` in the
-backend environment.
+The application uses a bounded in-process cache for login throttles and exam
+draft snapshots. Durable records remain in Cloud SQL, so no Redis or Memorystore
+service is required.

@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import { createApp } from './app.js';
 import { config } from './config.js';
-import { db, redis, logger } from './db.js';
+import { db, logger } from './db.js';
 import { sessionFromCookie } from './auth.js';
 import { expireAttempts } from './exams.js';
 import { originAllowed } from './settings.js';
@@ -72,5 +72,5 @@ let stopping = false;
 for (const signal of ['SIGINT','SIGTERM']) process.on(signal, async () => {
   if (stopping) return; stopping = true; clearInterval(sweep);
   const force = setTimeout(() => process.exit(1), 15000); force.unref();
-  io.close(); http.close(async () => { await db.$disconnect().catch(() => {}); redis.disconnect(); process.exit(0); });
+  io.close(); http.close(async () => { await db.$disconnect().catch(() => {}); process.exit(0); });
 });

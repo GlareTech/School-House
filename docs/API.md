@@ -12,7 +12,7 @@ All writes require an `Origin` matching `APP_ORIGINS`. Except login, writes also
 | GET | /auth/me | Current user and CSRF token |
 | POST | /auth/logout | Revoke current session and clear cookie |
 | GET | /health/live | Process liveness |
-| GET | /health/ready | PostgreSQL + Redis readiness; 503 when degraded |
+| GET | /health/ready | Cloud SQL readiness; 503 when degraded |
 
 ## Administrator
 

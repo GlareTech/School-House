@@ -24,9 +24,6 @@ env:
   - variable: TRUST_PROXY
     value: "1"
     availability: [RUNTIME]
-  - variable: CACHE_BACKEND
-    value: memory
-    availability: [RUNTIME]
   - variable: SITE_ID
     value: school-house
     availability: [RUNTIME]
