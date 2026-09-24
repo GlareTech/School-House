@@ -1,0 +1,749 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                        String                   @id @default(cuid()) @db.NVarChar(64)
+  email                     String                   @unique @db.NVarChar(254)
+  name                      String                   @db.NVarChar(150)
+  passwordHash              String                   @db.NVarChar(Max)
+  role                      String                   @default("STUDENT") @db.NVarChar(16)
+  active                    Boolean                  @default(true)
+  classId                   String?                  @db.NVarChar(64)
+  staffRoleId               String?                  @db.NVarChar(64)
+  profilePictureId          String?                  @unique @db.NVarChar(64)
+  phone                     String                   @default("") @db.NVarChar(Max)
+  address                   String                   @default("") @db.NVarChar(Max)
+  dateOfBirth               DateTime?                @db.Date
+  gender                    String                   @default("") @db.NVarChar(Max)
+  emergencyContactName      String                   @default("") @db.NVarChar(Max)
+  emergencyContactPhone     String                   @default("") @db.NVarChar(Max)
+  emergencyRelationship     String                   @default("") @db.NVarChar(Max)
+  guardianEmail             String                   @default("") @db.NVarChar(254)
+  studentAllowEmail         Boolean                  @default(true)
+  studentAllowSms           Boolean                  @default(true)
+  guardianAllowEmail        Boolean                  @default(true)
+  guardianAllowSms          Boolean                  @default(true)
+  medicalInformation        String                   @default("") @db.NVarChar(Max)
+  lastLoginAt               DateTime?
+  class                     Class?                   @relation(fields: [classId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  staffRole                 StaffRole?               @relation(fields: [staffRoleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  profilePicture            StoredFile?              @relation("UserProfilePicture", fields: [profilePictureId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sessions                  Session[]
+  attempts                  Attempt[]
+  attendance                Attendance[]
+  payments                  Payment[]
+  staffProfile              StaffProfile?
+  teachingAssignments       ClassSubject[]           @relation("SubjectTeacher")
+  staffClasses              StaffClass[]             @relation("StaffClasses")
+  assignmentSubmissions     AssignmentSubmission[]   @relation("StudentSubmissions")
+  gradeEntries              GradeEntry[]             @relation("StudentGrades")
+  gradesGiven               GradeEntry[]             @relation("TeacherGrades")
+  promotionDecisions        PromotionDecision[]
+  reportComments            ReportComment[]          @relation("ReportStudent")
+  reportCommentsGiven       ReportComment[]          @relation("ReportAuthor")
+  libraryUploads            LibraryMaterial[]        @relation("LibraryUploader")
+  progressReports           ProgressReport[]         @relation("ProgressStudent")
+  progressReportsMade       ProgressReport[]         @relation("ProgressAuthor")
+  classTeacherFor           Class[]                  @relation("ClassTeacher")
+  studentRatings            StudentRating[]          @relation("StudentRatings")
+  ratingsGiven              StudentRating[]          @relation("RatingAuthor")
+  attendanceWindowsOpened   AttendanceWindow[]       @relation("AttendanceOpenedBy")
+  attendanceWindowsApproved AttendanceWindow[]       @relation("AttendanceApprovedBy")
+  hostelAllocations         HostelAllocation[]       @relation("HostelStudent")
+  hostelAllocationsMade     HostelAllocation[]       @relation("HostelAllocator")
+  communicationCampaigns    CommunicationCampaign[]  @relation("CommunicationSender")
+  communicationRecipients   CommunicationRecipient[] @relation("CommunicationStudent")
+  createdAt                 DateTime                 @default(now())
+
+  @@index([classId])
+}
+
+model StaffRole {
+  id          String           @id @default(cuid()) @db.NVarChar(64)
+  name        String           @unique @db.NVarChar(150)
+  description String           @default("") @db.NVarChar(Max)
+  users       User[]
+  grants      StaffRoleGrant[]
+  createdAt   DateTime         @default(now())
+}
+
+model StaffRoleGrant {
+  staffRoleId String    @db.NVarChar(64)
+  staffRole   StaffRole @relation(fields: [staffRoleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  permission  String    @db.NVarChar(64)
+
+  @@id([staffRoleId, permission])
+}
+
+model AppSetting {
+  id                     String   @id @default("global") @db.NVarChar(64)
+  schoolName             String   @default("Schoolhouse") @db.NVarChar(Max)
+  shortName              String   @default("SH") @db.NVarChar(Max)
+  tagline                String   @default("Your school. Connected.") @db.NVarChar(Max)
+  primaryColor           String   @default("#103d36") @db.NVarChar(Max)
+  accentColor            String   @default("#e9f2c8") @db.NVarChar(Max)
+  academicYear           String   @default("") @db.NVarChar(Max)
+  currentTerm            String   @default("") @db.NVarChar(Max)
+  defaultCurrency        String   @default("NGN") @db.NVarChar(Max)
+  locale                 String   @default("en-NG") @db.NVarChar(Max)
+  timeZone               String   @default("Africa/Lagos") @db.NVarChar(Max)
+  autosaveSeconds        Int      @default(5)
+  kioskFullscreen        Boolean  @default(true)
+  remoteEnabled          Boolean  @default(false)
+  remoteUrl              String   @default("") @db.NVarChar(Max)
+  allowedOrigins         String   @default("") @db.NVarChar(Max)
+  logoPath               String   @default("") @db.NVarChar(Max)
+  watermarkPath          String   @default("") @db.NVarChar(Max)
+  address                String   @default("") @db.NVarChar(Max)
+  contactEmail           String   @default("") @db.NVarChar(Max)
+  contactPhone           String   @default("") @db.NVarChar(Max)
+  gradingScale           String   @db.NVarChar(Max)
+  passingMark            Int      @default(40)
+  syncEnabled            Boolean  @default(false)
+  hostelEnabled          Boolean  @default(false)
+  principalName          String   @default("") @db.NVarChar(Max)
+  principalSignaturePath String   @default("") @db.NVarChar(Max)
+  activeSessionId        String?  @db.NVarChar(64)
+  activeTermId           String?  @db.NVarChar(64)
+  updatedAt              DateTime @updatedAt
+}
+
+model Session {
+  id        String   @id @db.NVarChar(64)
+  userId    String   @db.NVarChar(64)
+  user      User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  csrf      String   @db.NVarChar(64)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+model Class {
+  id                     String                  @id @default(cuid()) @db.NVarChar(64)
+  name                   String                  @unique @db.NVarChar(150)
+  students               User[]
+  exams                  Exam[]
+  classSubjects          ClassSubject[]
+  staff                  StaffClass[]
+  classTeacherId         String?                 @db.NVarChar(64)
+  classTeacher           User?                   @relation("ClassTeacher", fields: [classTeacherId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  attendanceWindows      AttendanceWindow[]
+  libraryMaterials       LibraryMaterial[]
+  promotionSources       PromotionRule[]         @relation("PromotionSource")
+  promotionTargets       PromotionRule[]         @relation("PromotionTarget")
+  communicationCampaigns CommunicationCampaign[]
+  createdAt              DateTime                @default(now())
+}
+
+model Exam {
+  id              String     @id @default(cuid()) @db.NVarChar(64)
+  title           String     @db.NVarChar(200)
+  instructions    String     @default("") @db.NVarChar(Max)
+  classId         String     @db.NVarChar(64)
+  class           Class      @relation(fields: [classId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  durationMinutes Int
+  startsAt        DateTime
+  endsAt          DateTime
+  status          String     @default("DRAFT") @db.NVarChar(32)
+  releaseResults  Boolean    @default(false)
+  questions       Question[]
+  attempts        Attempt[]
+  createdAt       DateTime   @default(now())
+  termId          String?    @db.NVarChar(64)
+  term            Term?      @relation(fields: [termId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subjectId       String?    @db.NVarChar(64)
+  subject         Subject?   @relation(fields: [subjectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  timed           Boolean    @default(true)
+  autoSubmit      Boolean    @default(true)
+  assessmentLabel String     @default("FINAL_EXAM") @db.NVarChar(Max)
+
+  @@index([classId, status])
+}
+
+model Question {
+  id          String            @id @default(cuid()) @db.NVarChar(64)
+  examId      String            @db.NVarChar(64)
+  exam        Exam              @relation(fields: [examId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  prompt      String            @db.NVarChar(Max)
+  points      Int               @default(1)
+  type        String            @default("MCQ") @db.NVarChar(Max)
+  correctText String?           @db.NVarChar(Max)
+  options     Option[]
+  responses   StudentResponse[]
+
+  @@index([examId])
+}
+
+model Option {
+  id         String            @id @default(cuid()) @db.NVarChar(64)
+  questionId String            @db.NVarChar(64)
+  question   Question          @relation(fields: [questionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  text       String            @db.NVarChar(Max)
+  correct    Boolean           @default(false)
+  responses  StudentResponse[]
+
+  @@index([questionId])
+}
+
+model Attempt {
+  id            String            @id @default(cuid()) @db.NVarChar(64)
+  examId        String            @db.NVarChar(64)
+  exam          Exam              @relation(fields: [examId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  studentId     String            @db.NVarChar(64)
+  student       User              @relation(fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status        String            @default("ACTIVE") @db.NVarChar(32)
+  startedAt     DateTime          @default(now())
+  deadline      DateTime
+  submittedAt   DateTime?
+  score         Int?
+  maxScore      Int?
+  questionOrder String            @db.NVarChar(Max)
+  optionOrder   String            @db.NVarChar(Max)
+  revision      Int               @default(0)
+  lastSaveId    String?           @db.NVarChar(36)
+  lastSeenAt    DateTime          @default(now())
+  responses     StudentResponse[]
+  incidents     Incident[]
+
+  @@unique([examId, studentId])
+  @@index([status, deadline])
+}
+
+model StudentResponse {
+  attemptId    String   @db.NVarChar(64)
+  attempt      Attempt  @relation(fields: [attemptId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  questionId   String   @db.NVarChar(64)
+  question     Question @relation(fields: [questionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  optionId     String?  @db.NVarChar(64)
+  option       Option?  @relation(fields: [optionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  responseText String?  @db.NVarChar(Max)
+  manualScore  Int?
+  feedback     String   @default("") @db.NVarChar(Max)
+  updatedAt    DateTime @updatedAt
+
+  @@id([attemptId, questionId])
+}
+
+model Incident {
+  id        String   @id @default(cuid()) @db.NVarChar(64)
+  attemptId String   @db.NVarChar(64)
+  attempt   Attempt  @relation(fields: [attemptId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  kind      String   @db.NVarChar(64)
+  createdAt DateTime @default(now())
+
+  @@index([attemptId])
+}
+
+model Attendance {
+  id           String   @id @default(cuid()) @db.NVarChar(64)
+  studentId    String   @db.NVarChar(64)
+  student      User     @relation(fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  date         DateTime @db.Date
+  status       String   @db.NVarChar(32)
+  source       String   @default("STAFF") @db.NVarChar(Max)
+  reviewStatus String   @default("APPROVED") @db.NVarChar(Max)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([studentId, date])
+}
+
+model AttendanceWindow {
+  id           String    @id @default(cuid()) @db.NVarChar(64)
+  classId      String    @db.NVarChar(64)
+  class        Class     @relation(fields: [classId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  date         DateTime  @db.Date
+  status       String    @default("OPEN") @db.NVarChar(32)
+  closesAt     DateTime
+  openedById   String    @db.NVarChar(64)
+  openedBy     User      @relation("AttendanceOpenedBy", fields: [openedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  approvedById String?   @db.NVarChar(64)
+  approvedBy   User?     @relation("AttendanceApprovedBy", fields: [approvedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  approvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([classId, date])
+  @@index([date, status])
+}
+
+model Payment {
+  id          String   @id @default(cuid()) @db.NVarChar(64)
+  reference   String   @unique @db.NVarChar(100)
+  studentId   String   @db.NVarChar(64)
+  student     User     @relation(fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  amountMinor Int
+  currency    String   @default("NGN") @db.NVarChar(3)
+  description String   @db.NVarChar(Max)
+  createdAt   DateTime @default(now())
+}
+
+model SyncLog {
+  id            String    @id @default(cuid()) @db.NVarChar(64)
+  siteId        String    @db.NVarChar(64)
+  kind          String    @db.NVarChar(64)
+  entityId      String    @db.NVarChar(64)
+  payload       String    @db.NVarChar(Max)
+  createdAt     DateTime  @default(now())
+  syncedAt      DateTime?
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
+  leaseUntil    DateTime?
+  leaseToken    String?   @db.NVarChar(64)
+  lastError     String?   @db.NVarChar(Max)
+
+  @@index([syncedAt, nextAttemptAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid()) @db.NVarChar(64)
+  actorId   String   @db.NVarChar(64)
+  action    String   @db.NVarChar(Max)
+  entityId  String   @db.NVarChar(64)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model CommunicationCampaign {
+  id             String                   @id @default(cuid()) @db.NVarChar(64)
+  subject        String                   @default("") @db.NVarChar(Max)
+  body           String                   @db.NVarChar(Max)
+  audienceType   String                   @db.NVarChar(16)
+  recipientType  String                   @db.NVarChar(16)
+  classId        String?                  @db.NVarChar(64)
+  class          Class?                   @relation(fields: [classId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  senderId       String                   @db.NVarChar(64)
+  sender         User                     @relation("CommunicationSender", fields: [senderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status         String                   @default("QUEUED") @db.NVarChar(32)
+  recipientCount Int
+  createdAt      DateTime                 @default(now())
+  completedAt    DateTime?
+  recipients     CommunicationRecipient[]
+
+  @@index([createdAt])
+  @@index([senderId, createdAt])
+}
+
+model CommunicationRecipient {
+  id                String                @id @default(cuid()) @db.NVarChar(64)
+  campaignId        String                @db.NVarChar(64)
+  campaign          CommunicationCampaign @relation(fields: [campaignId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  studentId         String                @db.NVarChar(64)
+  student           User                  @relation("CommunicationStudent", fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recipientKind     String                @db.NVarChar(16)
+  channel           String                @db.NVarChar(16)
+  recipientName     String                @db.NVarChar(150)
+  destination       String                @db.NVarChar(320)
+  status            String                @default("QUEUED") @db.NVarChar(32)
+  attempts          Int                   @default(0)
+  availableAt       DateTime              @default(now())
+  leaseUntil        DateTime?
+  leaseToken        String?               @db.NVarChar(64)
+  sentAt            DateTime?
+  providerMessageId String?               @db.NVarChar(500)
+  lastError         String?               @db.NVarChar(Max)
+  createdAt         DateTime              @default(now())
+
+  @@unique([campaignId, channel, destination])
+  @@index([status, availableAt])
+  @@index([campaignId, status])
+  @@index([studentId, createdAt])
+}
+
+// Used only by the optional cloud receiver in its own PostgreSQL database.
+model CloudReceipt {
+  id         String   @id @db.NVarChar(64)
+  siteId     String   @db.NVarChar(64)
+  kind       String   @db.NVarChar(64)
+  entityId   String   @db.NVarChar(64)
+  payload    String   @db.NVarChar(Max)
+  occurredAt DateTime
+  receivedAt DateTime @default(now())
+
+  @@index([siteId, kind, entityId, occurredAt])
+}
+
+model AcademicSession {
+  id             String          @id @default(cuid()) @db.NVarChar(64)
+  name           String          @unique @db.NVarChar(150)
+  startsAt       DateTime
+  endsAt         DateTime
+  active         Boolean         @default(false)
+  terms          Term[]
+  promotionRules PromotionRule[]
+  promotionRuns  PromotionRun[]
+  createdAt      DateTime        @default(now())
+}
+
+model Term {
+  id              String           @id @default(cuid()) @db.NVarChar(64)
+  sessionId       String           @db.NVarChar(64)
+  session         AcademicSession  @relation(fields: [sessionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  name            String           @db.NVarChar(150)
+  position        Int
+  startsAt        DateTime
+  endsAt          DateTime
+  active          Boolean          @default(false)
+  assignments     Assignment[]
+  grades          GradeEntry[]
+  exams           Exam[]
+  reportComments  ReportComment[]
+  progressReports ProgressReport[]
+  studentRatings  StudentRating[]
+
+  @@unique([sessionId, name])
+}
+
+model StudentRating {
+  id        String   @id @default(cuid()) @db.NVarChar(64)
+  studentId String   @db.NVarChar(64)
+  student   User     @relation("StudentRatings", fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  termId    String   @db.NVarChar(64)
+  term      Term     @relation(fields: [termId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  category  String   @db.NVarChar(64)
+  ratings   String   @db.NVarChar(Max)
+  comment   String   @default("") @db.NVarChar(Max)
+  ratedById String   @db.NVarChar(64)
+  ratedBy   User     @relation("RatingAuthor", fields: [ratedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, termId, category])
+  @@index([termId, category])
+}
+
+model Subject {
+  id               String            @id @default(cuid()) @db.NVarChar(64)
+  code             String            @unique @db.NVarChar(20)
+  name             String            @unique @db.NVarChar(150)
+  core             Boolean           @default(false)
+  classSubjects    ClassSubject[]
+  exams            Exam[]
+  libraryMaterials LibraryMaterial[]
+}
+
+model ClassSubject {
+  id          String          @id @default(cuid()) @db.NVarChar(64)
+  classId     String          @db.NVarChar(64)
+  class       Class           @relation(fields: [classId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subjectId   String          @db.NVarChar(64)
+  subject     Subject         @relation(fields: [subjectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  teacherId   String?         @db.NVarChar(64)
+  teacher     User?           @relation("SubjectTeacher", fields: [teacherId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assignments Assignment[]
+  materials   StudyMaterial[]
+  rubric      CourseRubric?
+  grades      GradeEntry[]
+
+  @@unique([classId, subjectId])
+  @@index([teacherId])
+}
+
+model StaffProfile {
+  userId         String    @id @db.NVarChar(64)
+  user           User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  employeeNumber String    @unique @db.NVarChar(50)
+  phone          String    @default("") @db.NVarChar(Max)
+  address        String    @default("") @db.NVarChar(Max)
+  qualifications String    @db.NVarChar(Max)
+  salaryMinor    Int?
+  payrollStatus  String    @default("NOT_CONFIGURED") @db.NVarChar(Max)
+  hiredAt        DateTime?
+}
+
+model StaffClass {
+  staffId String @db.NVarChar(64)
+  staff   User   @relation("StaffClasses", fields: [staffId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  classId String @db.NVarChar(64)
+  class   Class  @relation(fields: [classId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([staffId, classId])
+}
+
+model StoredFile {
+  id                    String                 @id @default(cuid()) @db.NVarChar(64)
+  storageName           String                 @unique @db.NVarChar(100)
+  originalName          String                 @db.NVarChar(Max)
+  mimeType              String                 @db.NVarChar(Max)
+  size                  Int
+  purpose               String                 @db.NVarChar(Max)
+  createdById           String                 @db.NVarChar(64)
+  createdAt             DateTime               @default(now())
+  assignmentAttachments AssignmentAttachment[]
+  submissionFiles       SubmissionFile[]
+  materials             StudyMaterial[]
+  profileFor            User?                  @relation("UserProfilePicture")
+  libraryMaterials      LibraryMaterial[]
+}
+
+model LibraryMaterial {
+  id           String     @id @default(cuid()) @db.NVarChar(64)
+  title        String     @db.NVarChar(200)
+  description  String     @default("") @db.NVarChar(Max)
+  author       String     @default("") @db.NVarChar(Max)
+  category     String     @default("") @db.NVarChar(64)
+  fileId       String     @db.NVarChar(64)
+  file         StoredFile @relation(fields: [fileId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  classId      String?    @db.NVarChar(64)
+  class        Class?     @relation(fields: [classId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subjectId    String?    @db.NVarChar(64)
+  subject      Subject?   @relation(fields: [subjectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  uploadedById String     @db.NVarChar(64)
+  uploadedBy   User       @relation("LibraryUploader", fields: [uploadedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  published    Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  @@index([classId, subjectId, published])
+  @@index([createdAt])
+}
+
+model Assignment {
+  id             String                 @id @default(cuid()) @db.NVarChar(64)
+  classSubjectId String                 @db.NVarChar(64)
+  classSubject   ClassSubject           @relation(fields: [classSubjectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  termId         String                 @db.NVarChar(64)
+  term           Term                   @relation(fields: [termId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  title          String                 @db.NVarChar(200)
+  instructions   String                 @db.NVarChar(Max)
+  releaseAt      DateTime
+  dueAt          DateTime
+  maxScore       Int
+  published      Boolean                @default(false)
+  createdById    String                 @db.NVarChar(64)
+  createdAt      DateTime               @default(now())
+  attachments    AssignmentAttachment[]
+  submissions    AssignmentSubmission[]
+
+  @@index([classSubjectId, termId])
+}
+
+model AssignmentAttachment {
+  assignmentId String     @db.NVarChar(64)
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  fileId       String     @db.NVarChar(64)
+  file         StoredFile @relation(fields: [fileId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([assignmentId, fileId])
+}
+
+model AssignmentSubmission {
+  id           String           @id @default(cuid()) @db.NVarChar(64)
+  assignmentId String           @db.NVarChar(64)
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  studentId    String           @db.NVarChar(64)
+  student      User             @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  text         String           @default("") @db.NVarChar(Max)
+  submittedAt  DateTime         @default(now())
+  score        Int?
+  feedback     String           @default("") @db.NVarChar(Max)
+  gradedAt     DateTime?
+  gradedById   String?          @db.NVarChar(64)
+  files        SubmissionFile[]
+
+  @@unique([assignmentId, studentId])
+}
+
+model SubmissionFile {
+  submissionId String               @db.NVarChar(64)
+  submission   AssignmentSubmission @relation(fields: [submissionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  fileId       String               @db.NVarChar(64)
+  file         StoredFile           @relation(fields: [fileId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([submissionId, fileId])
+}
+
+model StudyMaterial {
+  id             String       @id @default(cuid()) @db.NVarChar(64)
+  classSubjectId String       @db.NVarChar(64)
+  classSubject   ClassSubject @relation(fields: [classSubjectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  title          String       @db.NVarChar(200)
+  description    String       @default("") @db.NVarChar(Max)
+  fileId         String       @db.NVarChar(64)
+  file           StoredFile   @relation(fields: [fileId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt      DateTime     @default(now())
+}
+
+model CourseRubric {
+  id             String            @id @default(cuid()) @db.NVarChar(64)
+  classSubjectId String            @unique @db.NVarChar(64)
+  classSubject   ClassSubject      @relation(fields: [classSubjectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  components     RubricComponent[]
+  updatedAt      DateTime          @updatedAt
+}
+
+model RubricComponent {
+  id       String       @id @default(cuid()) @db.NVarChar(64)
+  rubricId String       @db.NVarChar(64)
+  rubric   CourseRubric @relation(fields: [rubricId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  key      String       @db.NVarChar(30)
+  label    String       @db.NVarChar(100)
+  weight   Int
+
+  @@unique([rubricId, key])
+}
+
+model GradeEntry {
+  id             String       @id @default(cuid()) @db.NVarChar(64)
+  studentId      String       @db.NVarChar(64)
+  student        User         @relation("StudentGrades", fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  classSubjectId String       @db.NVarChar(64)
+  classSubject   ClassSubject @relation(fields: [classSubjectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  termId         String       @db.NVarChar(64)
+  term           Term         @relation(fields: [termId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  componentKey   String       @db.NVarChar(30)
+  title          String       @db.NVarChar(200)
+  score          Int
+  maxScore       Int
+  comment        String       @default("") @db.NVarChar(Max)
+  teacherId      String       @db.NVarChar(64)
+  teacher        User         @relation("TeacherGrades", fields: [teacherId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([studentId, classSubjectId, termId, componentKey, title])
+  @@index([classSubjectId, termId])
+}
+
+model PromotionRule {
+  id                 String          @id @default(cuid()) @db.NVarChar(64)
+  sessionId          String          @db.NVarChar(64)
+  session            AcademicSession @relation(fields: [sessionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sourceClassId      String          @db.NVarChar(64)
+  sourceClass        Class           @relation("PromotionSource", fields: [sourceClassId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  targetClassId      String          @db.NVarChar(64)
+  targetClass        Class           @relation("PromotionTarget", fields: [targetClassId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  minimumAverage     Int
+  coreSubjectMinimum Int
+  maximumFailedCore  Int             @default(0)
+
+  @@unique([sessionId, sourceClassId])
+}
+
+model PromotionRun {
+  id          String              @id @default(cuid()) @db.NVarChar(64)
+  sessionId   String              @db.NVarChar(64)
+  session     AcademicSession     @relation(fields: [sessionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status      String              @default("PREVIEW") @db.NVarChar(32)
+  createdById String              @db.NVarChar(64)
+  createdAt   DateTime            @default(now())
+  appliedAt   DateTime?
+  decisions   PromotionDecision[]
+}
+
+model PromotionDecision {
+  id          String       @id @default(cuid()) @db.NVarChar(64)
+  runId       String       @db.NVarChar(64)
+  run         PromotionRun @relation(fields: [runId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  studentId   String       @db.NVarChar(64)
+  student     User         @relation(fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  fromClassId String       @db.NVarChar(64)
+  toClassId   String?      @db.NVarChar(64)
+  average     Int
+  failedCore  Int
+  outcome     String       @db.NVarChar(Max)
+  reason      String       @db.NVarChar(Max)
+
+  @@unique([runId, studentId])
+}
+
+model ReportComment {
+  id                 String   @id @default(cuid()) @db.NVarChar(64)
+  studentId          String   @db.NVarChar(64)
+  student            User     @relation("ReportStudent", fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  termId             String   @db.NVarChar(64)
+  term               Term     @relation(fields: [termId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  teacherComment     String   @default("") @db.NVarChar(Max)
+  principalComment   String   @default("") @db.NVarChar(Max)
+  templateKey        String   @default("CLASSIC") @db.NVarChar(Max)
+  affectiveRatings   String   @default("{}") @db.NVarChar(Max)
+  psychomotorRatings String   @default("{}") @db.NVarChar(Max)
+  reportMetadata     String   @default("{}") @db.NVarChar(Max)
+  published          Boolean  @default(false)
+  authorId           String   @db.NVarChar(64)
+  author             User     @relation("ReportAuthor", fields: [authorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  updatedAt          DateTime @updatedAt
+
+  @@unique([studentId, termId])
+}
+
+model ProgressReport {
+  id                   String   @id @default(cuid()) @db.NVarChar(64)
+  studentId            String   @db.NVarChar(64)
+  student              User     @relation("ProgressStudent", fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  termId               String   @db.NVarChar(64)
+  term                 Term     @relation(fields: [termId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reportType           String   @default("MID_TERM") @db.NVarChar(32)
+  title                String   @default("MID-TERM PROGRESS REPORT") @db.NVarChar(200)
+  rows                 String   @db.NVarChar(Max)
+  traits               String   @db.NVarChar(Max)
+  teacherComment       String   @default("") @db.NVarChar(Max)
+  administratorComment String   @default("") @db.NVarChar(Max)
+  signedBy             String   @default("") @db.NVarChar(Max)
+  reportDate           DateTime @db.Date
+  status               String   @default("DRAFT") @db.NVarChar(32)
+  createdById          String   @db.NVarChar(64)
+  createdBy            User     @relation("ProgressAuthor", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([studentId, termId, reportType])
+  @@index([termId, status])
+}
+
+model Hostel {
+  id           String       @id @default(cuid()) @db.NVarChar(64)
+  name         String       @unique @db.NVarChar(150)
+  genderPolicy String       @default("MIXED") @db.NVarChar(Max)
+  address      String       @default("") @db.NVarChar(Max)
+  active       Boolean      @default(true)
+  rooms        HostelRoom[]
+  createdAt    DateTime     @default(now())
+}
+
+model HostelRoom {
+  id       String      @id @default(cuid()) @db.NVarChar(64)
+  hostelId String      @db.NVarChar(64)
+  hostel   Hostel      @relation(fields: [hostelId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  name     String      @db.NVarChar(150)
+  floor    String      @default("") @db.NVarChar(Max)
+  capacity Int
+  active   Boolean     @default(true)
+  beds     HostelBed[]
+
+  @@unique([hostelId, name])
+  @@index([hostelId])
+}
+
+model HostelBed {
+  id          String             @id @default(cuid()) @db.NVarChar(64)
+  roomId      String             @db.NVarChar(64)
+  room        HostelRoom         @relation(fields: [roomId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  label       String             @db.NVarChar(100)
+  active      Boolean            @default(true)
+  allocations HostelAllocation[]
+
+  @@unique([roomId, label])
+  @@index([roomId])
+}
+
+model HostelAllocation {
+  id            String    @id @default(cuid()) @db.NVarChar(64)
+  studentId     String    @db.NVarChar(64)
+  student       User      @relation("HostelStudent", fields: [studentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  bedId         String    @db.NVarChar(64)
+  bed           HostelBed @relation(fields: [bedId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status        String    @default("ACTIVE") @db.NVarChar(32)
+  startsAt      DateTime  @default(now())
+  endsAt        DateTime?
+  notes         String    @default("") @db.NVarChar(Max)
+  allocatedById String    @db.NVarChar(64)
+  allocatedBy   User      @relation("HostelAllocator", fields: [allocatedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt     DateTime  @default(now())
+
+  @@index([studentId, status])
+  @@index([bedId, status])
+}

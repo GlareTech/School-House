@@ -1,0 +1,6 @@
+# Development only: expose dependencies on loopback, not on the LAN.
+services:
+  db:
+    ports: ['127.0.0.1:5432:5432']
+  redis:
+    ports: ['127.0.0.1:6379:6379']

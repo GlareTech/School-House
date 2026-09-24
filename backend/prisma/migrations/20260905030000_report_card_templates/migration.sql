@@ -1,0 +1,6 @@
+ALTER TABLE "ReportComment"
+ADD COLUMN "templateKey" TEXT NOT NULL DEFAULT 'CLASSIC',
+ADD COLUMN "affectiveRatings" JSONB NOT NULL DEFAULT '{}',
+ADD COLUMN "psychomotorRatings" JSONB NOT NULL DEFAULT '{}',
+ADD COLUMN "reportMetadata" JSONB NOT NULL DEFAULT '{}',
+ADD COLUMN "published" BOOLEAN NOT NULL DEFAULT false;

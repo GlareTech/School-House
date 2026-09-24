@@ -1,0 +1,9 @@
+ALTER TYPE "Role" ADD VALUE 'STAFF';
+ALTER TABLE "User" ADD COLUMN "staffRoleId" TEXT;
+CREATE TABLE "StaffRole" ("id" TEXT NOT NULL, "name" TEXT NOT NULL, "description" TEXT NOT NULL DEFAULT '', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "StaffRole_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "StaffRole_name_key" ON "StaffRole"("name");
+CREATE TABLE "StaffRoleGrant" ("staffRoleId" TEXT NOT NULL, "permission" TEXT NOT NULL, CONSTRAINT "StaffRoleGrant_pkey" PRIMARY KEY ("staffRoleId","permission"));
+ALTER TABLE "StaffRoleGrant" ADD CONSTRAINT "StaffRoleGrant_staffRoleId_fkey" FOREIGN KEY ("staffRoleId") REFERENCES "StaffRole"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "User" ADD CONSTRAINT "User_staffRoleId_fkey" FOREIGN KEY ("staffRoleId") REFERENCES "StaffRole"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+CREATE INDEX "User_staffRoleId_idx" ON "User"("staffRoleId");
+CREATE TABLE "AppSetting" ("id" TEXT NOT NULL DEFAULT 'global', "schoolName" TEXT NOT NULL DEFAULT 'Schoolhouse', "shortName" TEXT NOT NULL DEFAULT 'SH', "tagline" TEXT NOT NULL DEFAULT 'Your school. Connected.', "primaryColor" TEXT NOT NULL DEFAULT '#103d36', "accentColor" TEXT NOT NULL DEFAULT '#e9f2c8', "academicYear" TEXT NOT NULL DEFAULT '', "currentTerm" TEXT NOT NULL DEFAULT '', "defaultCurrency" TEXT NOT NULL DEFAULT 'NGN', "locale" TEXT NOT NULL DEFAULT 'en-NG', "timeZone" TEXT NOT NULL DEFAULT 'Africa/Lagos', "autosaveSeconds" INTEGER NOT NULL DEFAULT 5, "kioskFullscreen" BOOLEAN NOT NULL DEFAULT true, "remoteEnabled" BOOLEAN NOT NULL DEFAULT false, "remoteUrl" TEXT NOT NULL DEFAULT '', "allowedOrigins" TEXT NOT NULL DEFAULT '', "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "AppSetting_pkey" PRIMARY KEY ("id"), CONSTRAINT "AppSetting_autosave_check" CHECK ("autosaveSeconds" BETWEEN 3 AND 30));

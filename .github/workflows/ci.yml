@@ -1,0 +1,34 @@
+name: Validate school system
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: school, POSTGRES_PASSWORD: testpass, POSTGRES_DB: school_test }
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U school -d school_test" --health-interval 5s --health-retries 20
+      redis:
+        image: redis:7.4
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-retries 20
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://school:testpass@localhost:5432/school_test
+      REDIS_URL: redis://localhost:6379
+      APP_ORIGINS: http://localhost:5173
+      SITE_ID: ci-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:migrate
+      - run: npm run check
+      - run: npm test
+      - run: npm run test:integration
+      - run: npm audit --omit=dev --audit-level=high
+      - run: docker build --target server -t school-api:test .
+      - run: docker build --target web -t school-web:test .

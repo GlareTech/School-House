@@ -1,0 +1,32 @@
+{
+  "name": "@hybrid/backend",
+  "version": "1.8.3",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "worker": "node src/worker.js",
+    "cloud": "node src/cloud.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "node prisma/seed.js",
+    "test": "node --test test/domain.test.js test/features.test.js test/communication-domain.test.js test/scope-domain.test.js",
+    "test:integration": "node --test --test-concurrency=1 test/integration.test.js",
+    "check": "node scripts/check.js"
+  },
+  "dependencies": {
+    "@prisma/client": "6.12.0",
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.7.0",
+    "nodemailer": "^10.0.1",
+    "pino": "^9.9.0",
+    "prisma": "6.12.0",
+    "socket.io": "^4.8.1",
+    "zod": "^3.25.76"
+  }
+}

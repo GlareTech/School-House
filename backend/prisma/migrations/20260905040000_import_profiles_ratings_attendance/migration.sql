@@ -1,0 +1,16 @@
+ALTER TABLE "User" ADD COLUMN "phone" TEXT NOT NULL DEFAULT '', ADD COLUMN "address" TEXT NOT NULL DEFAULT '', ADD COLUMN "dateOfBirth" DATE, ADD COLUMN "gender" TEXT NOT NULL DEFAULT '', ADD COLUMN "emergencyContactName" TEXT NOT NULL DEFAULT '', ADD COLUMN "emergencyContactPhone" TEXT NOT NULL DEFAULT '', ADD COLUMN "emergencyRelationship" TEXT NOT NULL DEFAULT '', ADD COLUMN "medicalInformation" TEXT NOT NULL DEFAULT '', ADD COLUMN "lastLoginAt" TIMESTAMP(3);
+ALTER TABLE "Class" ADD COLUMN "classTeacherId" TEXT;
+ALTER TABLE "Attendance" ADD COLUMN "source" TEXT NOT NULL DEFAULT 'STAFF', ADD COLUMN "reviewStatus" TEXT NOT NULL DEFAULT 'APPROVED';
+CREATE TABLE "AttendanceWindow" ("id" TEXT NOT NULL,"classId" TEXT NOT NULL,"date" DATE NOT NULL,"status" TEXT NOT NULL DEFAULT 'OPEN',"closesAt" TIMESTAMP(3) NOT NULL,"openedById" TEXT NOT NULL,"approvedById" TEXT,"approvedAt" TIMESTAMP(3),"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL,CONSTRAINT "AttendanceWindow_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "AttendanceWindow_classId_date_key" ON "AttendanceWindow"("classId","date");
+CREATE INDEX "AttendanceWindow_date_status_idx" ON "AttendanceWindow"("date","status");
+CREATE TABLE "StudentRating" ("id" TEXT NOT NULL,"studentId" TEXT NOT NULL,"termId" TEXT NOT NULL,"category" TEXT NOT NULL,"ratings" JSONB NOT NULL,"comment" TEXT NOT NULL DEFAULT '',"ratedById" TEXT NOT NULL,"updatedAt" TIMESTAMP(3) NOT NULL,CONSTRAINT "StudentRating_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "StudentRating_studentId_termId_category_key" ON "StudentRating"("studentId","termId","category");
+CREATE INDEX "StudentRating_termId_category_idx" ON "StudentRating"("termId","category");
+ALTER TABLE "Class" ADD CONSTRAINT "Class_classTeacherId_fkey" FOREIGN KEY ("classTeacherId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "AttendanceWindow" ADD CONSTRAINT "AttendanceWindow_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AttendanceWindow" ADD CONSTRAINT "AttendanceWindow_openedById_fkey" FOREIGN KEY ("openedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "AttendanceWindow" ADD CONSTRAINT "AttendanceWindow_approvedById_fkey" FOREIGN KEY ("approvedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "StudentRating" ADD CONSTRAINT "StudentRating_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "StudentRating" ADD CONSTRAINT "StudentRating_termId_fkey" FOREIGN KEY ("termId") REFERENCES "Term"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "StudentRating" ADD CONSTRAINT "StudentRating_ratedById_fkey" FOREIGN KEY ("ratedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

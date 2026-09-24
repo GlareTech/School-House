@@ -1,0 +1,14 @@
+{
+  "cbt": true,
+  "assignments": true,
+  "library": true,
+  "attendance": true,
+  "reports": true,
+  "hostel": true,
+  "payments": true,
+  "cloud_sync": true,
+  "remote_access": true,
+  "communications": true,
+  "email": true,
+  "sms": true
+}
