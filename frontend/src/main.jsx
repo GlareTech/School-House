@@ -4,6 +4,7 @@ import { api, setCsrf } from './api';
 import { Admin } from './Admin';
 import { Student } from './Student';
 import {BrandImage} from './BrandImage';
+import './firebase';
 import './style.css';
 import './extras.css';
 import './progress-report.css';

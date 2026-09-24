@@ -10,10 +10,10 @@ env:
     value: production
     availability: [RUNTIME]
   - variable: DATABASE_URL
-    secret: schoolhouseDatabaseUrl
+    value: postgresql://firebase-app-hosting-compute%40ife-psyche.iam@localhost/school-house-db?schema=public&connection_limit=10
     availability: [BUILD, RUNTIME]
   - variable: APP_ORIGINS
-    secret: schoolhouseAppOrigins
+    value: https://school-house--ife-psyche.europe-west4.hosted.app
     availability: [RUNTIME]
   - variable: COOKIE_SECURE
     value: "true"
@@ -28,10 +28,13 @@ env:
     value: memory
     availability: [RUNTIME]
   - variable: SITE_ID
-    secret: schoolhouseSiteId
+    value: school-house
     availability: [RUNTIME]
   - variable: FIREBASE_STORAGE_BUCKET
-    secret: schoolhouseStorageBucket
+    value: ife-psyche.firebasestorage.app
+    availability: [RUNTIME]
+  - variable: CLOUD_SQL_INSTANCE
+    value: ife-psyche:europe-west4:school-house
     availability: [RUNTIME]
   - variable: FIREBASE_DATA_CONNECT_ENABLED
     value: "true"

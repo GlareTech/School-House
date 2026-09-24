@@ -16,8 +16,10 @@
     "check": "node scripts/check.js"
   },
   "dependencies": {
-    "@schoolhouse/dataconnect-admin": "file:../dataconnect-generated/admin",
+    "@google-cloud/cloud-sql-connector": "^1.12.0",
+    "@prisma/adapter-pg": "^6.12.0",
     "@prisma/client": "6.12.0",
+    "@schoolhouse/dataconnect-admin": "file:../dataconnect-generated/admin",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.2",
@@ -26,6 +28,7 @@
     "helmet": "^8.1.0",
     "ioredis": "^5.7.0",
     "nodemailer": "^10.0.1",
+    "pg": "^8.16.3",
     "pino": "^9.9.0",
     "prisma": "6.12.0",
     "socket.io": "^4.8.1",

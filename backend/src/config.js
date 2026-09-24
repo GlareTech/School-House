@@ -44,6 +44,7 @@ export const config = z.object({
   // always use the same persistent upload directory.
   UPLOAD_DIR: z.string().default('./data/uploads').transform(value => resolve(projectRoot, value)),
   FIREBASE_STORAGE_BUCKET: z.string().trim().default(''),
+  CLOUD_SQL_INSTANCE: z.string().trim().default(''),
   FIREBASE_DATA_CONNECT_ENABLED: bool
 }).parse(rawConfig);
 if (config.FEATURE_CLOUD_SYNC && config.CLOUD_SYNC_URL) {
