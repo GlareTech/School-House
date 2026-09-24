@@ -1,0 +1,8 @@
+# Copy to apphosting.production.yaml after replacing the network identifiers,
+# then set the App Hosting backend environment name to "production".
+runConfig:
+  vpcAccess:
+    egress: PRIVATE_RANGES_ONLY
+    networkInterfaces:
+      - network: YOUR_VPC_NETWORK_ID
+        subnetwork: YOUR_VPC_SUBNETWORK_ID

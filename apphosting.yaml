@@ -1,0 +1,58 @@
+runConfig:
+  cpu: 1
+  memoryMiB: 1024
+  concurrency: 40
+  minInstances: 0
+  maxInstances: 10
+
+env:
+  - variable: NODE_ENV
+    value: production
+    availability: [RUNTIME]
+  - variable: DATABASE_PROVIDER
+    value: postgresql
+    availability: [BUILD, RUNTIME]
+  - variable: DATABASE_URL
+    secret: schoolhouseDatabaseUrl
+    availability: [BUILD, RUNTIME]
+  - variable: APP_ORIGINS
+    secret: schoolhouseAppOrigins
+    availability: [RUNTIME]
+  - variable: COOKIE_SECURE
+    value: "true"
+    availability: [RUNTIME]
+  - variable: COOKIE_SAME_SITE
+    value: lax
+    availability: [RUNTIME]
+  - variable: TRUST_PROXY
+    value: "1"
+    availability: [RUNTIME]
+  - variable: CACHE_BACKEND
+    value: memory
+    availability: [RUNTIME]
+  - variable: SITE_ID
+    secret: schoolhouseSiteId
+    availability: [RUNTIME]
+  - variable: FIREBASE_STORAGE_BUCKET
+    secret: schoolhouseStorageBucket
+    availability: [RUNTIME]
+  - variable: FIREBASE_DATA_CONNECT_ENABLED
+    value: "true"
+    availability: [RUNTIME]
+  - variable: FEATURE_SETTINGS_FILE
+    value: config/features.json
+    availability: [BUILD, RUNTIME]
+
+scripts:
+  buildCommand: npm run build
+  runCommand: npm start
+
+outputFiles:
+  serverApp:
+    include:
+      - backend
+      - frontend/dist
+      - config
+      - package.json
+      - package-lock.json
+      - node_modules

@@ -1,5 +1,5 @@
 {
-  "name": "@hybrid/frontend",
+  "name": "@schoolhouse/frontend",
   "version": "1.8.3",
   "private": true,
   "type": "module",
@@ -9,7 +9,6 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
-    "qrcode": "^1.5.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "socket.io-client": "^4.8.1"

@@ -1,4 +1,4 @@
-name: hybrid-school
+name: schoolhouse-saas
 x-app: &app
   build:
     context: .

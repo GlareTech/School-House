@@ -1,5 +1,5 @@
 {
-  "name": "hybrid-school",
+  "name": "schoolhouse-saas",
   "version": "1.8.3",
   "private": true,
   "workspaces": [
@@ -8,7 +8,8 @@
   ],
   "scripts": {
     "dev": "concurrently -k \"npm run dev -w backend\" \"npm run dev -w frontend\"",
-    "build": "npm run build -w frontend",
+    "build": "npm run db:generate && npm run build -w frontend",
+    "start": "npm start -w backend",
     "test": "npm test -w backend",
     "test:integration": "npm run test:integration -w backend",
     "db:generate": "node scripts/env-run.mjs db:generate",

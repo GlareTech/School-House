@@ -71,13 +71,13 @@ The archive includes a SHA-256 source manifest. The packaging script reads every
 ## Security and feature-control verification — 6 September 2026
 
 - Grouped administrator and staff navigation into task-oriented sections; hidden modules are also removed from dashboard shortcuts.
-- Added server-side environment gates for CBT, assignments, library, attendance, reports, hostel, payments, cloud sync, and remote access.
-- Added origin allowlisting and browser preflight handling; a configured remote public URL becomes an allowed origin only while remote access is enabled.
+- Added server-side environment gates for CBT, assignments, library, attendance, reports, hostel, payments, cloud sync, and communications.
+- Added deployment-owned origin allowlisting and browser preflight handling.
 - Added strict cookie configuration validation, authenticated principal-signature delivery, file relationship authorization, and content-signature checks for PDF and image uploads.
 - Library PDFs now use an authenticated inline viewer, omit the normal download action, disable byte-range delivery, and use inline content disposition.
 - Passed eight backend domain/security tests and the production Vite build.
 - Passed the live SQL-backed smoke test for readiness, login, administrative and academic endpoints, public feature state, CORS preflight, forged-PDF rejection, inline PDF headers, student profile access, Socket.IO, and logout.
-- Remote HTTP exposure was not enabled: automatic approval review rejected binding the preview to cellular and VPN interfaces. Use the documented HTTPS gateway deployment for remote access.
+- Public HTTP exposure was not enabled; hosted production deployments must use the documented HTTPS gateway.
 
 ## Communications and security verification — 7 September 2026
 
@@ -92,7 +92,6 @@ The archive includes a SHA-256 source manifest. The packaging script reads every
 
 ## Remote connection QR verification — 7 September 2026
 
-- Added QR generation from the saved access URL or server-recommended LAN URL; the QR payload contains an address only.
 - Added configurable connection protocol, host and port defaults with private IPv4 discovery and Wi-Fi-style `192.168.x.x` preference.
 - Passed backend syntax checks, all 11 tests, the 127-module Vite production build, and a dependency audit with zero known vulnerabilities.
 - Verified both loopback and `http://192.168.90.214:4173/` LAN readiness responses against the running SQL-backed preview.

@@ -1,0 +1,18 @@
+query GetDeploymentStatus @auth(level: NO_ACCESS) {
+  schoolhouseDeployment(key: {id: "global"}) {
+    environment
+    schemaVersion
+    updatedAt
+  }
+}
+
+mutation UpsertDeploymentStatus($environment: String!, $schemaVersion: String!) @auth(level: NO_ACCESS) {
+  schoolhouseDeployment_upsert(
+    data: {
+      id: "global"
+      environment: $environment
+      schemaVersion: $schemaVersion
+      updatedAt_expr: "request.time"
+    }
+  )
+}

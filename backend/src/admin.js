@@ -5,7 +5,7 @@ import { db, audit, enqueue } from './db.js';
 import { admin, permit, publicUser, PERMISSIONS } from './auth.js';
 import { HttpError } from './domain.js';
 import { lockRow } from './provider.js';
-import { clearSettingsCache, connectionDefaults, defaults } from './settings.js';
+import { clearSettingsCache, defaults } from './settings.js';
 const id = z.string().min(1).max(100);
 const passwordSchema = z.string().min(12).max(72).refine(v => Buffer.byteLength(v, 'utf8') <= 72, 'Password must be at most 72 UTF-8 bytes');
 const questionSchema = z.object({ prompt: z.string().trim().min(1).max(10000), points: z.number().int().min(1).max(100),
@@ -225,13 +225,10 @@ export function adminRouter() {
     const actors=await db.user.findMany({where:{id:{in:[...new Set(items.map(x=>x.actorId))]}},select:{id:true,name:true,email:true}}),byId=new Map(actors.map(x=>[x.id,x]));
     res.json({items:items.map(x=>({...x,actor:byId.get(x.actorId)||null})),page:query.page,pageSize:query.pageSize,total,pages:Math.ceil(total/query.pageSize)});
   });
-  r.get('/settings', async (req,res) => res.json({...await db.appSetting.upsert({where:{id:'global'},create:defaults,update:{}}),connectionDefaults:connectionDefaults()}));
+  r.get('/settings', async (req,res) => res.json(await db.appSetting.upsert({where:{id:'global'},create:defaults,update:{}})));
   r.put('/settings', async (req,res) => {
-    const urlOrEmpty=z.string().trim().max(500).refine(value=>!value || (()=>{try{new URL(value);return true}catch{return false}})(),'Invalid URL');
     const scale=z.array(z.object({grade:z.string().trim().min(1).max(5),min:z.number().int().min(0).max(100),remark:z.string().trim().max(100)})).min(2).max(20);
-    const data=z.object({schoolName:z.string().trim().min(1).max(150),shortName:z.string().trim().min(1).max(12),tagline:z.string().trim().max(200),primaryColor:z.string().regex(/^#[0-9a-fA-F]{6}$/),accentColor:z.string().regex(/^#[0-9a-fA-F]{6}$/),academicYear:z.string().trim().max(50),currentTerm:z.string().trim().max(50),defaultCurrency:z.string().regex(/^[A-Z]{3}$/),locale:z.string().trim().min(2).max(20),timeZone:z.string().trim().min(1).max(100),autosaveSeconds:z.number().int().min(3).max(30),kioskFullscreen:z.boolean(),remoteEnabled:z.boolean(),remoteUrl:urlOrEmpty,allowedOrigins:z.string().max(1000),logoPath:z.string().max(100),watermarkPath:z.string().max(100),address:z.string().max(500),contactEmail:z.union([z.literal(''),z.string().email().max(254)]),contactPhone:z.string().max(50),gradingScale:scale,passingMark:z.number().int().min(0).max(100),syncEnabled:z.boolean(),hostelEnabled:z.boolean(),activeSessionId:id.nullable(),activeTermId:id.nullable(),principalName:z.string().max(150),principalSignaturePath:z.string().max(100)}).strict().parse(req.body);
-    const remoteValues=[data.remoteUrl,...data.allowedOrigins.split(/\r?\n|,/)].map(v=>v.trim()).filter(Boolean);
-    for(const value of remoteValues){const origin=new URL(value),host=origin.hostname.toLowerCase(),privateHost=['localhost','127.0.0.1','::1'].includes(host)||host.endsWith('.local')||host.startsWith('10.')||host.startsWith('192.168.')||(/^172\.(1[6-9]|2\d|3[01])\./.test(host));if(data.remoteEnabled && origin.protocol!=='https:'&&!privateHost)throw new HttpError(400,'Public remote addresses must use HTTPS');}
+    const data=z.object({schoolName:z.string().trim().min(1).max(150),shortName:z.string().trim().min(1).max(12),tagline:z.string().trim().max(200),primaryColor:z.string().regex(/^#[0-9a-fA-F]{6}$/),accentColor:z.string().regex(/^#[0-9a-fA-F]{6}$/),academicYear:z.string().trim().max(50),currentTerm:z.string().trim().max(50),defaultCurrency:z.string().regex(/^[A-Z]{3}$/),locale:z.string().trim().min(2).max(20),timeZone:z.string().trim().min(1).max(100),autosaveSeconds:z.number().int().min(3).max(30),kioskFullscreen:z.boolean(),logoPath:z.string().max(100),watermarkPath:z.string().max(100),address:z.string().max(500),contactEmail:z.union([z.literal(''),z.string().email().max(254)]),contactPhone:z.string().max(50),gradingScale:scale,passingMark:z.number().int().min(0).max(100),syncEnabled:z.boolean(),hostelEnabled:z.boolean(),activeSessionId:id.nullable(),activeTermId:id.nullable(),principalName:z.string().max(150),principalSignaturePath:z.string().max(100)}).strict().parse(req.body);
     const settings=await db.$transaction(async tx=>{const saved=await tx.appSetting.upsert({where:{id:'global'},create:{id:'global',...data},update:data});await audit(tx,req.user.id,'settings.update','global');return saved;});clearSettingsCache();res.json(settings);
   });
   return r;

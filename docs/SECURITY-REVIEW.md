@@ -6,7 +6,7 @@ This review covers authentication, cross-origin access, module controls, file de
 
 - Session identifiers remain in opaque, HTTP-only cookies. State-changing requests require a CSRF token.
 - Session cookies now request high browser priority. SameSite and Secure behavior remain deployment-controlled and invalid `SameSite=None` combinations fail at startup.
-- Cross-origin responses now echo only configured origins and handle browser preflight requests. The saved Remote Access public URL and explicit origin list participate in the same allowlist only when remote access is enabled.
+- Cross-origin responses echo only the deployment-owned `APP_ORIGINS` allowlist and handle browser preflight requests.
 - `COOKIE_SAME_SITE` is configurable. `none` is rejected unless secure cookies are also enabled.
 - Environment feature switches are server-side gates. Disabled modules disappear from navigation and dashboards, and their API endpoints return 404.
 - `config/features.json` is the single readable feature-control file. Environment values can lock an override without exposing secrets in that file.
@@ -32,11 +32,9 @@ This review covers authentication, cross-origin access, module controls, file de
 | Medium | Mail/SMS provider inputs lacked complete header/sender validation. | Sender values reject line breaks and unsupported characters; Twilio numbers are validated. |
 | Medium | Communication state strings were enforced only in application code. | Both PostgreSQL and SQL Server migrations include database check constraints. |
 
-## Remote access deployment
+## SaaS deployment boundary
 
-Use HTTPS through the supplied gateway or another trusted reverse proxy. Add the exact public origin in Configuration > Remote access and restrict the host firewall to intended networks. A separate cross-site HTTPS frontend may require `COOKIE_SAME_SITE=none` together with `COOKIE_SECURE=true`. Keep database and Redis ports private; publish only the web gateway.
-
-The Remote Access QR code contains only the configured application URL. It does not contain credentials, session tokens, student data, or Wi-Fi passwords. Default LAN addresses are calculated from server network interfaces, with ordinary `192.168.x.x` networks preferred, and can be overridden with `CONNECTION_HOST`. A QR code provides address discovery only; every user must still authenticate and remains subject to RBAC.
+Use HTTPS through the supplied gateway or another trusted reverse proxy. Set the exact public application origin in `APP_ORIGINS` and keep that value under deployment control. A separate cross-site HTTPS frontend may require `COOKIE_SAME_SITE=none` together with `COOKIE_SECURE=true`. Keep database and Redis ports private; publish only the web gateway.
 
 The local preview script intentionally binds to `127.0.0.1`. It is for validation on the server computer and is not a remote-access deployment.
 

@@ -2,6 +2,9 @@ import express from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { ZodError } from 'zod';
 import { config } from './config.js';
 import { db, redis, logger } from './db.js';
@@ -39,6 +42,11 @@ export function createApp(io) {
   app.use('/api/communications', authenticate, requireFeature('communications'), communicationRouter());
   fileRoutes(app);
   app.use('/api/exams', authenticate, requireFeature('cbt'), examRouter(io));
+  const webRoot=fileURLToPath(new URL('../../frontend/dist',import.meta.url));
+  if(existsSync(webRoot)){
+    app.use(express.static(webRoot,{index:false,maxAge:'1y',immutable:true}));
+    app.get(/^(?!\/api\/|\/socket\.io\/).*/,(_req,res)=>res.sendFile(join(webRoot,'index.html')));
+  }
   app.use((req, res) => res.status(404).json({ error: 'Not found' }));
   app.use((err, req, res, next) => {
     if (res.headersSent) return next(err);

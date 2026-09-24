@@ -1,0 +1,9 @@
+# Firebase SQL Connect owns this deployment metadata table. The application
+# domain schema remains migration-managed by Prisma during the transition so
+# existing transactions, constraints, and row locks retain their semantics.
+type SchoolhouseDeployment @table(name: "firebase_schoolhouse_deployment") {
+  id: String!
+  environment: String!
+  schemaVersion: String!
+  updatedAt: Timestamp! @default(expr: "request.time")
+}

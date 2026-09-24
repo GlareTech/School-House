@@ -6,7 +6,7 @@ import { z } from 'zod';
 dotenv.config({ path: fileURLToPath(new URL('../../.env', import.meta.url)), quiet: true });
 const bool = z.enum(['true', 'false']).default('false').transform(v => v === 'true');
 const enabled = z.enum(['true', 'false']).default('true').transform(v => v === 'true');
-const featureKeys=['CBT','ASSIGNMENTS','LIBRARY','ATTENDANCE','REPORTS','HOSTEL','PAYMENTS','CLOUD_SYNC','REMOTE_ACCESS','COMMUNICATIONS','EMAIL','SMS'];
+const featureKeys=['CBT','ASSIGNMENTS','LIBRARY','ATTENDANCE','REPORTS','HOSTEL','PAYMENTS','CLOUD_SYNC','COMMUNICATIONS','EMAIL','SMS'];
 const featureFileSchema=z.object(Object.fromEntries(featureKeys.map(key=>[key.toLowerCase(),z.boolean()]))).strict();
 const projectRoot=fileURLToPath(new URL('../../',import.meta.url));
 const featureFilePath=process.env.FEATURE_SETTINGS_FILE
@@ -19,13 +19,10 @@ const rawConfig={...process.env};
 for(const key of featureKeys) rawConfig[`FEATURE_${key}`]??=String(featureFile[key.toLowerCase()]);
 export const config = z.object({
   NODE_ENV: z.enum(['development','test','production']).default('development'),
-  DATABASE_URL: z.string().min(1), REDIS_URL: z.string().url(),
+  DATABASE_URL: z.string().min(1), REDIS_URL: z.string().url().default('redis://localhost:6379'),
   DATABASE_PROVIDER: z.enum(['postgresql','sqlserver']).default('postgresql'),
   CACHE_BACKEND: z.enum(['redis','memory']).default('redis'),
   PORT: z.coerce.number().int().positive().default(3000),
-  CONNECTION_SCHEME: z.enum(['http','https']).default('http'),
-  CONNECTION_HOST: z.string().trim().max(253).regex(/^$|^[A-Za-z0-9.-]+$/,'CONNECTION_HOST must be a hostname or IP address').default(''),
-  CONNECTION_PORT: z.coerce.number().int().min(1).max(65535).default(8080),
   APP_ORIGINS: z.string().min(1).transform(v => v.split(',').map(x => new URL(x.trim()).origin)),
   COOKIE_SECURE: bool, COOKIE_SAME_SITE: z.enum(['strict','lax','none']).default('strict'), TRUST_PROXY: z.coerce.number().int().min(0).max(2).default(0),
   SESSION_HOURS: z.coerce.number().min(1).max(24).default(12),
@@ -33,7 +30,7 @@ export const config = z.object({
   CLOUD_SYNC_TOKEN: z.string().default(''), SYNC_INTERVAL_MS: z.coerce.number().min(1000).default(15000),
   LOG_LEVEL: z.string().default('info'),
   FEATURE_CBT: enabled, FEATURE_ASSIGNMENTS: enabled, FEATURE_LIBRARY: enabled, FEATURE_ATTENDANCE: enabled,
-  FEATURE_REPORTS: enabled, FEATURE_HOSTEL: enabled, FEATURE_PAYMENTS: enabled, FEATURE_CLOUD_SYNC: enabled, FEATURE_REMOTE_ACCESS: enabled,
+  FEATURE_REPORTS: enabled, FEATURE_HOSTEL: enabled, FEATURE_PAYMENTS: enabled, FEATURE_CLOUD_SYNC: enabled,
   FEATURE_COMMUNICATIONS: enabled, FEATURE_EMAIL: enabled, FEATURE_SMS: enabled,
   MAIL_TRANSPORT: z.enum(['disabled','smtp','console']).default('disabled'),
   SMTP_HOST: z.string().default(''), SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587), SMTP_SECURE: bool,
@@ -46,7 +43,9 @@ export const config = z.object({
   // npm workspaces start the API with backend/ as process.cwd(). Resolve the
   // configured path from the project root so local, LAN and maintenance tasks
   // always use the same persistent upload directory.
-  UPLOAD_DIR: z.string().default('./data/uploads').transform(value => resolve(projectRoot, value))
+  UPLOAD_DIR: z.string().default('./data/uploads').transform(value => resolve(projectRoot, value)),
+  FIREBASE_STORAGE_BUCKET: z.string().trim().default(''),
+  FIREBASE_DATA_CONNECT_ENABLED: bool
 }).parse(rawConfig);
 if (config.FEATURE_CLOUD_SYNC && config.CLOUD_SYNC_URL) {
   const url = new URL(config.CLOUD_SYNC_URL);
@@ -55,10 +54,6 @@ if (config.FEATURE_CLOUD_SYNC && config.CLOUD_SYNC_URL) {
 }
 
 if (config.COOKIE_SAME_SITE === 'none' && !config.COOKIE_SECURE) throw new Error('SameSite=None cookies require COOKIE_SECURE=true');
-if(config.NODE_ENV==='production'&&config.CONNECTION_HOST&&config.CONNECTION_SCHEME!=='https'){
-  const host=config.CONNECTION_HOST.toLowerCase(),privateHost=['localhost','127.0.0.1'].includes(host)||host.endsWith('.local')||host.startsWith('10.')||host.startsWith('192.168.')||/^172\.(1[6-9]|2\d|3[01])\./.test(host);
-  if(!privateHost)throw new Error('Public CONNECTION_HOST values require CONNECTION_SCHEME=https');
-}
 if (config.NODE_ENV === 'production' && ['console'].includes(config.MAIL_TRANSPORT)) throw new Error('Console email transport is not allowed in production');
 if (config.NODE_ENV === 'production' && ['console'].includes(config.SMS_TRANSPORT)) throw new Error('Console SMS transport is not allowed in production');
 if (config.FEATURE_EMAIL && config.MAIL_TRANSPORT === 'smtp' && (!config.SMTP_HOST || !config.SMTP_FROM)) throw new Error('SMTP_HOST and SMTP_FROM are required for SMTP email');

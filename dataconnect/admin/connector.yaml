@@ -1,0 +1,5 @@
+connectorId: schoolhouse-admin
+generate:
+  adminNodeSdk:
+    outputDir: ../../dataconnect-generated/admin
+    package: "@schoolhouse/dataconnect-admin"

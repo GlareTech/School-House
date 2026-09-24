@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { getApps, initializeApp } from 'firebase-admin/app';
+import { getStorage } from 'firebase-admin/storage';
 import { resolve, join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { db, audit, enqueue } from './db.js';
@@ -265,8 +267,17 @@ export function academicRouter() {
 }
 
 const uploadRoot=()=>resolve(config.UPLOAD_DIR);
+const storageBucket=()=>{
+  if(!config.FIREBASE_STORAGE_BUCKET)return null;
+  const app=getApps()[0]||initializeApp({storageBucket:config.FIREBASE_STORAGE_BUCKET});
+  return getStorage(app).bucket(config.FIREBASE_STORAGE_BUCKET);
+};
 const storedBody=async file=>{
   if(!/^[a-f0-9]{48}\.(pdf|png|jpg|txt)$/.test(file.storageName))throw new HttpError(404,'Stored file is unavailable');
+  const bucket=storageBucket();
+  if(bucket){
+    try{const [body]=await bucket.file(`uploads/${file.storageName}`).download();return body}catch(error){if(error?.code===404)throw new HttpError(404,'Stored file is unavailable; upload it again');throw error}
+  }
   try{return await readFile(join(uploadRoot(),file.storageName))}catch(error){if(error?.code==='ENOENT')throw new HttpError(404,'Stored file is unavailable; upload it again');throw error}
 };
 const mimeExt={'application/pdf':'.pdf','image/png':'.png','image/jpeg':'.jpg','text/plain':'.txt'};
@@ -286,7 +297,9 @@ export function fileRoutes(app) {
     const mime=req.headers['content-type'],original=String(req.headers['x-file-name']||'file').replace(/[\r\n]/g,'').slice(0,200);
     if(!mimeExt[mime])throw new HttpError(415,'Allowed files: PDF, PNG, JPEG, and text');
     if(!validFileContent(mime,req.body))throw new HttpError(415,'File content does not match its declared type');
-    const dir=uploadRoot(),storageName=randomBytes(24).toString('hex')+mimeExt[mime];await mkdir(dir,{recursive:true});await writeFile(join(dir,storageName),req.body,{flag:'wx'});
+    const dir=uploadRoot(),storageName=randomBytes(24).toString('hex')+mimeExt[mime],bucket=storageBucket();
+    if(bucket)await bucket.file(`uploads/${storageName}`).save(req.body,{resumable:false,contentType:mime,metadata:{cacheControl:'private, max-age=0'},preconditionOpts:{ifGenerationMatch:0}});
+    else{await mkdir(dir,{recursive:true});await writeFile(join(dir,storageName),req.body,{flag:'wx'});}
     res.status(201).json(await db.storedFile.create({data:{storageName,originalName:original,mimeType:mime,size:req.body.length,purpose,createdById:req.user.id}}));
   });
   app.get('/api/files/:id',async(req,res)=>{

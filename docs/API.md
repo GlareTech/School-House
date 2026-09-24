@@ -41,7 +41,7 @@ Staff accounts may use only endpoints granted by their `StaffRoleGrant` records.
 | PATCH | /admin/staff/:id | Administrator-only role, status and password changes; revokes sessions |
 | GET, POST | /admin/staff-roles | List roles; administrator-only role creation |
 | PUT | /admin/staff-roles/:id | Administrator-only permission replacement; revokes affected sessions |
-| GET, PUT | /admin/settings | Remote access, personalization and school configuration; GET includes QR connection defaults and detected LAN URLs |
+| GET, PUT | /admin/settings | School personalization and academic configuration |
 
 ## Hostel management
 

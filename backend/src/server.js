@@ -6,6 +6,9 @@ import { db, redis, logger } from './db.js';
 import { sessionFromCookie } from './auth.js';
 import { expireAttempts } from './exams.js';
 import { originAllowed } from './settings.js';
+import { getApps, initializeApp } from 'firebase-admin/app';
+import { getDataConnect } from 'firebase-admin/data-connect';
+import { connectorConfig, upsertDeploymentStatus } from '@schoolhouse/dataconnect-admin';
 const io = new Server();
 const http = createServer(createApp(io));
 io.attach(http, { maxHttpBufferSize: 10000, cors: { origin: (origin,cb) => originAllowed(origin).then(ok => cb(ok ? null : new Error('Origin rejected'), ok)).catch(() => cb(new Error('Origin rejected'),false)), credentials: true },
@@ -44,7 +47,12 @@ const sweep = setInterval(async () => {
   finally { sweepBusy = false; }
 }, 2000);
 await db.$connect();
-http.listen(config.PORT, '0.0.0.0', () => logger.info({ port: config.PORT }, 'LAN school server ready'));
+if(config.FIREBASE_DATA_CONNECT_ENABLED){
+  const firebaseApp=getApps()[0]||initializeApp();
+  await upsertDeploymentStatus(getDataConnect(connectorConfig,firebaseApp),{environment:config.NODE_ENV,schemaVersion:'1.8.3'});
+  logger.info('Firebase SQL Connect ready');
+}
+http.listen(config.PORT, '0.0.0.0', () => logger.info({ port: config.PORT }, 'Schoolhouse SaaS API ready'));
 let stopping = false;
 for (const signal of ['SIGINT','SIGTERM']) process.on(signal, async () => {
   if (stopping) return; stopping = true; clearInterval(sweep);

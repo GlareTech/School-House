@@ -10,7 +10,6 @@ const values = {
   hostel: config.FEATURE_HOSTEL,
   payments: config.FEATURE_PAYMENTS,
   cloudSync: config.FEATURE_CLOUD_SYNC,
-  remoteAccess: config.FEATURE_REMOTE_ACCESS,
   communications: config.FEATURE_COMMUNICATIONS,
   email: config.FEATURE_COMMUNICATIONS && config.FEATURE_EMAIL,
   sms: config.FEATURE_COMMUNICATIONS && config.FEATURE_SMS

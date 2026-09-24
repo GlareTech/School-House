@@ -1,17 +1,17 @@
-# Schoolhouse — Hybrid School Management + CBT
+# Schoolhouse — School Management SaaS + CBT
 
 **Local Windows SQL Express setup:** see `docs/LOCAL-SQL-SERVER.md`. The original PostgreSQL deployment below is also retained. Select the correct database provider and regenerate the Prisma client before starting.
 
-A LAN-first school application with an Express 5 API, React/Vite interface, Prisma/PostgreSQL persistence, Redis answer snapshots, Socket.IO monitoring, and a durable background cloud outbox. All browser assets are served locally; no CDN or internet connection is needed during an exam.
+A centrally hosted school operations platform with an Express 5 API, React/Vite interface, Prisma/PostgreSQL persistence, Redis answer snapshots, Socket.IO monitoring, and durable background jobs. Each deployment serves one school workspace from a canonical HTTPS origin.
 
 ## What is included
 
 - Administrator login; student registration with webcam capture or image upload, class assignment, password reset and account disabling.
 - Staff accounts with administrator-defined roles and least-privilege permissions for classes, students, exams, monitoring, results, attendance, payments, synchronization and settings. Students remain restricted to their own assigned exams and attempts.
-- Remote-access allowlist settings with an automatically generated QR connection card, detected LAN defaults, school branding colors/name/tagline, academic configuration, autosave interval and fullscreen policy.
+- School branding colors/name/tagline, academic configuration, autosave interval and fullscreen policy.
 - Logo, watermark, contact details, grading boundaries, active term/session, currency, passing mark, principal identity and persistent attachment storage.
 - Staff profiles with employee numbers, qualifications, class/subject assignments, salary and payroll state, credential reset and a dedicated searchable, paginated access log.
-- A LAN library for PDF, image and text materials. Teachers see their own uploads plus resources for their class-wide assignments and exact class/subject teaching courses. Students see global and enrolled-class materials.
+- A protected library for PDF, image and text materials. Teachers see their own uploads plus resources for their class-wide assignments and exact class/subject teaching courses. Students see global and enrolled-class materials.
 - Optional hostel management with configuration-level on/off control, hostel blocks, rooms, generated bed spaces, occupancy summaries, student check-in/check-out and a dedicated staff permission.
 - A permission-scoped communications centre for individual, class, or school-wide email and SMS to students and guardians, backed by a durable outbox with retries, delivery history, consent preferences, and masked destinations.
 - Server-enforced staff data scope across administrative class, student, CBT, result, attendance and payment operations.
@@ -40,19 +40,19 @@ A LAN-first school application with an Express 5 API, React/Vite interface, Pris
 
 This is a deployable source implementation, not a claim of independently certified production readiness. Read `docs/VALIDATION.md` for checks actually run and outstanding deployment checks. Test with your intended number of devices and have an invigilator supervise the first sessions.
 
-## Quick start — central server
+## Quick start — hosted deployment
 
-Requirements: Docker Engine/Desktop with Compose v2, a reserved LAN address, and enough local disk for the database and backups. Windows Docker Desktop must use Linux containers. Images and packages require internet on first build; a running, prebuilt installation does not.
+Requirements: a Linux host with Docker Engine and Compose v2, a DNS name, TLS termination, and persistent storage for the database, Redis, uploads, and backups.
 
-1. Extract the archive and open a terminal in `hybrid-school`.
+1. Clone the repository and open a terminal in `schoolhouse-saas`.
 2. Copy `.env.example` to `.env`.
 3. Set `POSTGRES_PASSWORD` to a random password and set the matching password in `DATABASE_URL`. Use URL-safe characters or percent-encode the connection URL password. Set a unique `ADMIN_PASSWORD` of at least 16 characters; placeholder passwords are rejected. Do not commit `.env`.
-4. Set `APP_ORIGINS` to the exact URL(s) students will open, e.g. `http://192.168.1.10:8080,http://localhost:8080`. No trailing path, wildcards, or localhost-only setting for LAN clients. Reserve that IP in your router.
+4. Set `APP_ORIGINS` to the exact HTTPS application URL, for example `https://school.example.com`. Do not use paths or wildcards.
 5. Run `docker compose up -d --build`, or `powershell -File scripts/start.ps1` on Windows / `sh scripts/start.sh` on Linux.
-6. Open `http://SERVER_LAN_IP:8080` and sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
+6. Point the TLS reverse proxy at the web service, open the HTTPS application URL, and sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
 7. Create a class, register students, create an exam draft with questions and an opening window, then publish. Sign in as a student on a second device and complete a trial exam.
 
-Compose starts PostgreSQL and Redis, applies committed migrations, creates the first administrator, then starts API, worker and Nginx. Only the web port is exposed to the LAN. A repeated seed leaves an existing administrator password unchanged. The default HTTP profile is for initial isolated LAN setup; use HTTPS for operational deployment as described below.
+Compose starts PostgreSQL and Redis, applies committed migrations, creates the first administrator, then starts the API, worker, and Nginx services. Publish only the web gateway through an HTTPS reverse proxy. A repeated seed leaves an existing administrator password unchanged.
 
 Useful commands:
 
@@ -79,6 +79,18 @@ npm run dev
 ```
 
 The root `.env` is loaded by the application and seed. Prisma CLI commands need `DATABASE_URL` in the shell or `backend/.env`; see the convenience environment wrapper in `scripts/env-run.mjs`. Root database commands use that wrapper. Keep `http://localhost:5173` in `APP_ORIGINS` for Vite. The frontend proxies API and Socket.IO to port 3000. Run `npm run worker -w backend` in another terminal for background sync. Development dependency ports bind to loopback only.
+
+## Firebase App Hosting
+
+The repository can also deploy as a single Firebase App Hosting backend. The
+App Hosting build produces the React bundle and Express serves it together with
+the API and Socket.IO endpoint. Firebase SQL Connect provisions the managed
+Cloud SQL for PostgreSQL database, while Prisma connects to that database for
+the existing transactional server data layer. Firebase Storage replaces local
+upload persistence when `FIREBASE_STORAGE_BUCKET` is configured.
+
+See [Firebase deployment](docs/FIREBASE-DEPLOYMENT.md) for resource provisioning,
+required secrets, SQL Connect deployment, migrations, and production scaling.
 
 ## Examination behavior
 
@@ -150,13 +162,13 @@ package.json, package-lock.json
 
 Design references: [Prisma production migrations](https://www.prisma.io/docs/orm/v6/prisma-client/deployment/deploy-database-changes-with-prisma-migrate), [Socket.IO authentication middleware](https://socket.io/docs/v4/middlewares/), [PostgreSQL row locking](https://www.postgresql.org/docs/16/explicit-locking.html).
 
-## Feature switches and secure remote access
+## Feature switches
 
-Edit `config/features.json` to enable or disable CBT, assignments, library, attendance, reports, hostel, payments, cloud sync, remote access, communications, email, or SMS. Restart the API and worker after a change. A matching `FEATURE_*` environment value overrides the file for deployments that need locked settings. Disabled modules disappear from navigation and their API routes return 404. The Configuration page shows the effective state; its hostel setting provides an additional day-to-day on/off control.
+Edit `config/features.json` to enable or disable CBT, assignments, library, attendance, reports, hostel, payments, cloud sync, communications, email, or SMS. Restart the API and worker after a change. A matching `FEATURE_*` environment value overrides the file for deployments that need locked settings. Disabled modules disappear from navigation and their API routes return 404. The Configuration page shows the effective state; its hostel setting provides an additional day-to-day on/off control.
 
 Navigation is grouped by Home, People, Teaching, Assessment, Reports, Operations, and System. Groups and shortcuts are filtered by role permissions and enabled modules.
 
-For remote access, use HTTPS through the Docker gateway or another trusted reverse proxy, enable `FEATURE_REMOTE_ACCESS`, and save the exact public URL under Configuration > Remote access. The saved URL is automatically added to the allowed browser origins. The page generates a QR code from the saved URL or recommended LAN address. `CONNECTION_SCHEME`, `CONNECTION_HOST`, and `CONNECTION_PORT` control the suggested connection defaults; the server automatically discovers private IPv4 addresses when the host is blank. Exact generated connection origins are trusted so the QR login works on the LAN. Public configured hosts require HTTPS in production. See [Security review](docs/SECURITY-REVIEW.md).
+Browser access is served from the canonical application URL. Configure its exact origin in `APP_ORIGINS`; origin policy is deployment-owned and cannot be changed from the school administration UI. See [Security review](docs/SECURITY-REVIEW.md).
 
 Library PDFs open inside the authenticated application viewer without a download action. This discourages ordinary downloading but cannot prevent screenshots or advanced copying after a document has been displayed.
 
