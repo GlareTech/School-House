@@ -14,6 +14,91 @@ enum Role {
   STUDENT
 }
 
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+model Organization {
+  id            String         @id @default(cuid())
+  name          String
+  slug          String         @unique
+  active        Boolean        @default(true)
+  trialEndsAt   DateTime?
+  users         User[]
+  subscriptions Subscription[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model SubscriptionPlan {
+  id               String         @id @default(cuid())
+  code             String         @unique
+  name             String
+  description      String
+  amountMinor      Int
+  currency         String         @default("NGN")
+  interval         String         @default("monthly")
+  maxStudents      Int
+  features         Json
+  active           Boolean        @default(true)
+  paystackPlanCode String?
+  subscriptions    Subscription[]
+  signupIntents    SignupIntent[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Subscription {
+  id                       String             @id @default(cuid())
+  organizationId           String
+  organization             Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  planId                    String
+  plan                      SubscriptionPlan   @relation(fields: [planId], references: [id])
+  status                    SubscriptionStatus @default(TRIALING)
+  trialStartsAt             DateTime
+  trialEndsAt               DateTime
+  currentPeriodStart        DateTime?
+  currentPeriodEnd          DateTime?
+  paystackCustomerCode      String?
+  paystackSubscriptionCode  String?            @unique
+  paystackEmailToken        String?
+  authorizationCode        String?
+  authorizationSignature   String?
+  cardBrand                 String?
+  cardLast4                 String?
+  nextChargeAt              DateTime?
+  cancelledAt               DateTime?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+
+  @@index([organizationId, status])
+}
+
+model PlatformAdmin {
+  id           String            @id @default(cuid())
+  email        String            @unique
+  name         String
+  passwordHash String
+  active       Boolean           @default(true)
+  lastLoginAt  DateTime?
+  sessions     PlatformSession[]
+  createdAt    DateTime          @default(now())
+}
+
+model PlatformSession {
+  id        String        @id
+  adminId   String
+  admin     PlatformAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  csrf      String
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
 enum ExamStatus {
   DRAFT
   PUBLISHED
@@ -85,17 +170,24 @@ model User {
   communicationCampaigns    CommunicationCampaign[]  @relation("CommunicationSender")
   communicationRecipients   CommunicationRecipient[] @relation("CommunicationStudent")
   createdAt                 DateTime                 @default(now())
+  organizationId            String
+  organization              Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([classId])
+  @@index([organizationId, role])
 }
 
 model StaffRole {
   id          String           @id @default(cuid())
-  name        String           @unique
+  name        String
   description String           @default("")
   users       User[]
   grants      StaffRoleGrant[]
   createdAt   DateTime         @default(now())
+  organizationId String
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
 }
 
 model StaffRoleGrant {
@@ -107,7 +199,8 @@ model StaffRoleGrant {
 }
 
 model AppSetting {
-  id                     String   @id @default("global")
+  id                     String   @id @default(cuid())
+  organizationId         String   @unique
   schoolName             String   @default("Schoolhouse")
   shortName              String   @default("SH")
   tagline                String   @default("Your school. Connected.")
@@ -153,12 +246,14 @@ model SignupIntent {
   email        String   @unique
   passwordHash String
   reference    String   @unique
+  planId       String
+  plan         SubscriptionPlan @relation(fields: [planId], references: [id])
   createdAt    DateTime @default(now())
 }
 
 model Class {
   id                     String                  @id @default(cuid())
-  name                   String                  @unique
+  name                   String
   students               User[]
   exams                  Exam[]
   classSubjects          ClassSubject[]
@@ -171,6 +266,10 @@ model Class {
   promotionTargets       PromotionRule[]         @relation("PromotionTarget")
   communicationCampaigns CommunicationCampaign[]
   createdAt              DateTime                @default(now())
+
+  organizationId         String
+  @@unique([organizationId, name])
+  @@index([organizationId])
 }
 
 model Exam {
@@ -194,8 +293,10 @@ model Exam {
   timed           Boolean    @default(true)
   autoSubmit      Boolean    @default(true)
   assessmentLabel String     @default("FINAL_EXAM")
+  organizationId  String
 
   @@index([classId, status])
+  @@index([organizationId])
 }
 
 model Question {
@@ -281,6 +382,7 @@ model Attendance {
   source       String           @default("STAFF")
   reviewStatus String           @default("APPROVED")
   updatedAt    DateTime         @updatedAt
+  organizationId String
 
   @@unique([studentId, date])
 }
@@ -313,6 +415,9 @@ model Payment {
   currency    String   @default("NGN")
   description String
   createdAt   DateTime @default(now())
+  organizationId String
+
+  @@index([organizationId])
 }
 
 model SyncLog {
@@ -328,6 +433,7 @@ model SyncLog {
   leaseUntil    DateTime?
   leaseToken    String?
   lastError     String?
+  organizationId String
 
   @@index([syncedAt, nextAttemptAt])
 }
@@ -338,6 +444,7 @@ model AuditLog {
   action    String
   entityId  String
   createdAt DateTime @default(now())
+  organizationId String
 
   @@index([createdAt])
 }
@@ -357,6 +464,7 @@ model CommunicationCampaign {
   createdAt      DateTime                 @default(now())
   completedAt    DateTime?
   recipients     CommunicationRecipient[]
+  organizationId String
 
   @@index([createdAt])
   @@index([senderId, createdAt])
@@ -403,7 +511,7 @@ model CloudReceipt {
 
 model AcademicSession {
   id             String          @id @default(cuid())
-  name           String          @unique
+  name           String
   startsAt       DateTime
   endsAt         DateTime
   active         Boolean         @default(false)
@@ -411,6 +519,10 @@ model AcademicSession {
   promotionRules PromotionRule[]
   promotionRuns  PromotionRun[]
   createdAt      DateTime        @default(now())
+  organizationId String
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
 }
 
 model Term {
@@ -451,12 +563,17 @@ model StudentRating {
 
 model Subject {
   id               String            @id @default(cuid())
-  code             String            @unique
-  name             String            @unique
+  code             String
+  name             String
   core             Boolean           @default(false)
   classSubjects    ClassSubject[]
   exams            Exam[]
   libraryMaterials LibraryMaterial[]
+  organizationId   String
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, name])
+  @@index([organizationId])
 }
 
 model ClassSubject {
@@ -511,6 +628,9 @@ model StoredFile {
   materials             StudyMaterial[]
   profileFor            User?                  @relation("UserProfilePicture")
   libraryMaterials      LibraryMaterial[]
+  organizationId        String
+
+  @@index([organizationId])
 }
 
 model LibraryMaterial {
@@ -728,12 +848,16 @@ model ProgressReport {
 
 model Hostel {
   id           String       @id @default(cuid())
-  name         String       @unique
+  name         String
   genderPolicy String       @default("MIXED")
   address      String       @default("")
   active       Boolean      @default(true)
   rooms        HostelRoom[]
   createdAt    DateTime     @default(now())
+  organizationId String
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
 }
 
 model HostelRoom {

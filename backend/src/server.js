@@ -9,6 +9,7 @@ import { originAllowed } from './settings.js';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getDataConnect } from 'firebase-admin/data-connect';
 import { connectorConfig, upsertDeploymentStatus } from '@schoolhouse/dataconnect-admin';
+import { ensurePlatformAdmin } from './platform.js';
 const io = new Server();
 const http = createServer(createApp(io));
 io.attach(http, { maxHttpBufferSize: 10000, cors: { origin: (origin,cb) => originAllowed(origin).then(ok => cb(ok ? null : new Error('Origin rejected'), ok)).catch(() => cb(new Error('Origin rejected'),false)), credentials: true },
@@ -51,6 +52,7 @@ http.listen(config.PORT, '0.0.0.0', () => logger.info({ port: config.PORT }, 'Sc
 async function initializeServices() {
   try {
     await db.$connect();
+    await ensurePlatformAdmin();
     dbReady = true;
     logger.info('Cloud SQL ready');
   } catch (err) {

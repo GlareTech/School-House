@@ -6,7 +6,7 @@ import { retryDelay } from './domain.js';
 import { isSqlServer } from './provider.js';
 export async function syncBatch() {
   if (!config.FEATURE_CLOUD_SYNC || !config.CLOUD_SYNC_URL) return { disabled: true };
-  const settings=await db.appSetting.findUnique({where:{id:'global'},select:{syncEnabled:true}});
+  const settings=await db.appSetting.findFirst({select:{syncEnabled:true}});
   if(settings&&!settings.syncEnabled)return {disabled:true};
   const token = randomUUID();
   const events = await db.$transaction(async tx => {

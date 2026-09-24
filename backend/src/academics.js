@@ -47,7 +47,7 @@ const reportDefaults={templateKey:'CLASSIC',affectiveRatings:{},psychomotorRatin
 
 export async function reportFor(studentId, termId) {
   const [settings,student,term,grades,comment,ratings]=await Promise.all([
-    db.appSetting.findUnique({where:{id:'global'}}),
+    db.appSetting.findFirst(),
     db.user.findFirst({where:{id:studentId,role:'STUDENT'},include:{class:true}}),
     db.term.findUnique({where:{id:termId},include:{session:true}}),
     db.gradeEntry.findMany({where:{studentId,termId},include:{classSubject:{include:{subject:true,rubric:{include:{components:true}}}}}}),
@@ -198,7 +198,7 @@ export function academicRouter() {
     const classIds=[...new Set(students.map(s=>s.classId).filter(Boolean))];
     const courses=await db.classSubject.findMany({where:{classId:{in:classIds},...(wide?{OR:[{classId:{in:wide}},{id:{in:teacherCourses.map(x=>x.id)}}]}:{})},include:{subject:true,rubric:{include:{components:true}}}});
     const grades=students.length&&courses.length?await db.gradeEntry.findMany({where:{termId:query.termId,studentId:{in:students.map(s=>s.id)},classSubjectId:{in:courses.map(c=>c.id)}},include:{classSubject:{include:{subject:true,rubric:{include:{components:true}}}}}}):[];
-    const scale=(await db.appSetting.findUnique({where:{id:'global'},select:{gradingScale:true}}))?.gradingScale||[];
+    const scale=(await db.appSetting.findFirst({select:{gradingScale:true}}))?.gradingScale||[];
     const byStudent=groupsOf(grades,'studentId');
     res.json(students.map(student=>{
       const entries=byStudent.get(student.id)||[],entryGroups=groupsOf(entries,'classSubjectId'),subjects=courses.filter(c=>c.classId===student.classId).flatMap(course=>{
@@ -306,7 +306,7 @@ export function fileRoutes(app) {
     const f=await db.storedFile.findUnique({where:{id:req.params.id},include:{_count:{select:{libraryMaterials:true,assignmentAttachments:true,submissionFiles:true,materials:true}}}});if(!f)throw new HttpError(404,'File not found');
     if((f._count.libraryMaterials||f._count.materials)&&!featureEnabled('library'))throw new HttpError(404,'Library module is disabled');
     if((f._count.assignmentAttachments||f._count.submissionFiles)&&!featureEnabled('assignments'))throw new HttpError(404,'Assignments module is disabled');
-    const settings=await db.appSetting.findUnique({where:{id:'global'},select:{principalSignaturePath:true}}),isSignature=settings?.principalSignaturePath===f.id;
+    const settings=await db.appSetting.findFirst({select:{principalSignaturePath:true}}),isSignature=settings?.principalSignaturePath===f.id;
     let permitted=req.user.role==='ADMIN'||isSignature&&(req.user.role==='STUDENT'||has(req,'REPORTS_VIEW'));
     if(req.user.role==='STUDENT')permitted=(isSignature&&!!await db.reportComment.findFirst({where:{studentId:req.user.id,published:true},select:{id:true}}))||!!await db.storedFile.findFirst({where:{id:f.id,OR:[{profileFor:{id:req.user.id}},{assignmentAttachments:{some:{assignment:{published:true,classSubject:{classId:req.user.classId||'none'}}}}},{submissionFiles:{some:{submission:{studentId:req.user.id}}}},{materials:{some:{classSubject:{classId:req.user.classId||'none'}}}},{libraryMaterials:{some:{published:true,OR:[{classId:null,subjectId:null},{classId:req.user.classId||'none'},{subject:{classSubjects:{some:{classId:req.user.classId||'none'}}}}]}}}]}});
     if(req.user.role==='STAFF'){
@@ -327,7 +327,7 @@ export function fileRoutes(app) {
   });
 }
 export async function publicAsset(req,res){
-  const settings=await db.appSetting.findUnique({where:{id:'global'}});
+  const settings=await db.appSetting.findFirst();
   if(!settings||![settings.logoPath,settings.watermarkPath].includes(req.params.id))throw new HttpError(404,'Asset not found');
   const f=await db.storedFile.findUnique({where:{id:req.params.id}});if(!f||!f.mimeType.startsWith('image/'))throw new HttpError(404,'Asset not found');
   res.setHeader('Cache-Control','public, max-age=3600');res.type(f.mimeType).send(await storedBody(f));

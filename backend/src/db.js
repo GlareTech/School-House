@@ -5,33 +5,49 @@ import pino from 'pino';
 import { config } from './config.js';
 import { configureClient } from './provider.js';
 import { MemoryCache } from './memory-cache.js';
+import { currentTenantId } from './tenant-context.js';
 export const logger = pino({ level: config.LOG_LEVEL, redact: ['password', 'token', 'headers.cookie', 'headers.authorization'] });
 let rawClient = null;
 let clientPromise = null;
 
 async function createDatabaseClient() {
-  if (!config.CLOUD_SQL_INSTANCE) return new PrismaClient();
+  let client;
+  if (!config.CLOUD_SQL_INSTANCE) client = new PrismaClient();
 
-  const databaseUrl = new URL(config.DATABASE_URL);
-  const connector = new Connector();
-  const connectionOptions = await connector.getOptions({
-    instanceConnectionName: config.CLOUD_SQL_INSTANCE,
-    ipType: IpAddressTypes.PUBLIC,
-    authType: AuthTypes.IAM,
-  });
-  const adapter = new PrismaPg(
-    {
+  if (!client) {
+    const databaseUrl = new URL(config.DATABASE_URL);
+    const connector = new Connector();
+    const connectionOptions = await connector.getOptions({
+      instanceConnectionName: config.CLOUD_SQL_INSTANCE,
+      ipType: IpAddressTypes.PUBLIC,
+      authType: AuthTypes.IAM,
+    });
+    const adapter = new PrismaPg({
       ...connectionOptions,
       user: decodeURIComponent(databaseUrl.username),
       ...(databaseUrl.password ? { password: decodeURIComponent(databaseUrl.password) } : {}),
       database: databaseUrl.pathname.slice(1),
       max: Number(databaseUrl.searchParams.get('connection_limit') || 10),
-    },
-    {
-      schema: databaseUrl.searchParams.get('schema') || 'public',
+    }, { schema: databaseUrl.searchParams.get('schema') || 'public' });
+    client = new PrismaClient({ adapter });
+  }
+  const tenantModels = new Set(['User','StaffRole','AppSetting','Class','Exam','Attendance','Payment','SyncLog','AuditLog','CommunicationCampaign','AcademicSession','Subject','StoredFile','Hostel']);
+  return client.$extends({ query: { $allModels: { async $allOperations({ model, operation, args, query }) {
+    const organizationId = currentTenantId();
+    if (!organizationId || !tenantModels.has(model)) return query(args);
+    if (['findMany','findFirst','findFirstOrThrow','findUnique','findUniqueOrThrow','count','aggregate','update','updateMany','delete','deleteMany'].includes(operation)) {
+      args.where = { ...(args.where || {}), organizationId };
     }
-  );
-  return new PrismaClient({ adapter });
+    if (operation === 'create') args.data = { ...args.data, organizationId };
+    if (operation === 'createMany' || operation === 'createManyAndReturn') {
+      args.data = (Array.isArray(args.data) ? args.data : [args.data]).map(data => ({ ...data, organizationId }));
+    }
+    if (operation === 'upsert') {
+      args.where = { ...(args.where || {}), organizationId };
+      args.create = { ...args.create, organizationId };
+    }
+    return query(args);
+  } } } });
 }
 
 export async function getClient() {
