@@ -41,15 +41,21 @@ io.on('connection', socket => {
   socket.on('disconnect', () => clearInterval(revalidate));
 });
 let sweepBusy = false;
+let dbReady = false;
 const sweep = setInterval(async () => {
-  if (sweepBusy) return; sweepBusy = true;
+  if (sweepBusy || !dbReady) return; sweepBusy = true;
   try { await expireAttempts(io); } catch (err) { logger.error({ err }, 'Deadline sweep failed'); }
   finally { sweepBusy = false; }
 }, 2000);
 http.listen(config.PORT, '0.0.0.0', () => logger.info({ port: config.PORT }, 'Schoolhouse SaaS API ready'));
 async function initializeServices() {
-  await db.$connect();
-  logger.info('Cloud SQL ready');
+  try {
+    await db.$connect();
+    dbReady = true;
+    logger.info('Cloud SQL ready');
+  } catch (err) {
+    logger.error({ err }, 'Cloud SQL initialization failed');
+  }
   if (config.FIREBASE_DATA_CONNECT_ENABLED) {
     try {
       const firebaseApp = getApps()[0] || initializeApp();
@@ -61,10 +67,10 @@ async function initializeServices() {
     }
   }
 }
-initializeServices().catch(err => logger.error({ err }, 'Cloud SQL initialization failed'));
+initializeServices().catch(err => logger.error({ err }, 'Service initialization failed'));
 let stopping = false;
 for (const signal of ['SIGINT','SIGTERM']) process.on(signal, async () => {
   if (stopping) return; stopping = true; clearInterval(sweep);
   const force = setTimeout(() => process.exit(1), 15000); force.unref();
-  io.close(); http.close(async () => { await db.$disconnect(); redis.disconnect(); process.exit(0); });
+  io.close(); http.close(async () => { await db.$disconnect().catch(() => {}); redis.disconnect(); process.exit(0); });
 });

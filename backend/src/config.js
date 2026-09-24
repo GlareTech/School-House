@@ -19,7 +19,11 @@ const rawConfig={...process.env};
 for(const key of featureKeys) rawConfig[`FEATURE_${key}`]??=String(featureFile[key.toLowerCase()]);
 export const config = z.object({
   NODE_ENV: z.enum(['development','test','production']).default('development'),
-  DATABASE_URL: z.string().min(1), REDIS_URL: z.string().url().default('redis://localhost:6379'),
+  DATABASE_URL: z.string().min(1).refine(
+    v => v.startsWith('postgresql://') || v.startsWith('postgres://'),
+    'DATABASE_URL must start with postgresql:// or postgres://'
+  ),
+  REDIS_URL: z.string().url().default('redis://localhost:6379'),
   CACHE_BACKEND: z.enum(['redis','memory']).default('redis'),
   PORT: z.coerce.number().int().positive().default(3000),
   APP_ORIGINS: z.string().min(1).transform(v => v.split(',').map(x => new URL(x.trim()).origin)),

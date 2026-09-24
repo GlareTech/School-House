@@ -53,6 +53,7 @@ outputFiles:
       - backend
       - frontend/dist
       - config
+      - dataconnect-generated
       - package.json
       - package-lock.json
       - node_modules
