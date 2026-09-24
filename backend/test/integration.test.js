@@ -4,9 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import bcrypt from 'bcryptjs';
 // This suite must only target a disposable database whose name contains "test".
-const testDatabase = process.env.DATABASE_URL?.startsWith('sqlserver:')
-  ? process.env.DATABASE_URL.match(/(?:^|;)database=([^;]+)/i)?.[1]
-  : process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).pathname : '';
+const testDatabase = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).pathname : '';
 if (!testDatabase?.includes('test')) throw new Error('Integration tests require an explicit disposable test database');
 const { db, redis } = await import('../src/db.js');
 const { createApp } = await import('../src/app.js');

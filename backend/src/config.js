@@ -20,7 +20,6 @@ for(const key of featureKeys) rawConfig[`FEATURE_${key}`]??=String(featureFile[k
 export const config = z.object({
   NODE_ENV: z.enum(['development','test','production']).default('development'),
   DATABASE_URL: z.string().min(1), REDIS_URL: z.string().url().default('redis://localhost:6379'),
-  DATABASE_PROVIDER: z.enum(['postgresql','sqlserver']).default('postgresql'),
   CACHE_BACKEND: z.enum(['redis','memory']).default('redis'),
   PORT: z.coerce.number().int().positive().default(3000),
   APP_ORIGINS: z.string().min(1).transform(v => v.split(',').map(x => new URL(x.trim()).origin)),

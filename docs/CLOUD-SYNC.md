@@ -38,7 +38,7 @@ Return 200 only after a durable commit:
 ## Reference receiver deployment
 
 1. Provision an independent PostgreSQL database in your cloud environment.
-2. Build the Docker `server` target and apply `npm run db:migrate` with that database URL.
+2. Deploy a separate trusted receiver service and apply `npm run db:migrate` with that database URL.
 3. Run `npm run cloud -w backend` with `DATABASE_URL`, `REDIS_URL=redis://localhost:6379`, `APP_ORIGINS`, `SITE_ID`, `CLOUD_SYNC_TOKEN` and optional `CLOUD_PORT=4000`. The common configuration validates a Redis URL, but the receiver opens no Redis connection and needs only PostgreSQL.
 4. Terminate HTTPS in front of port 4000; restrict request rates and network access at that proxy. Do not use the LAN Compose database as the cloud database.
 5. Configure the LAN worker's `CLOUD_SYNC_URL=https://your-cloud-host/v1/sync` and matching secret/site, then restart `worker`.

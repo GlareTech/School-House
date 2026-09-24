@@ -7,5 +7,7 @@ backups/
 coverage/
 local/
 data/
+.firebase/
+dataconnect/.dataconnect/
 .env.example
 .firebaserc.example

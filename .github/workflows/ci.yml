@@ -30,5 +30,3 @@ jobs:
       - run: npm test
       - run: npm run test:integration
       - run: npm audit --omit=dev --audit-level=high
-      - run: docker build --target server -t school-api:test .
-      - run: docker build --target web -t school-web:test .

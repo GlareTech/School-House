@@ -9,9 +9,6 @@ env:
   - variable: NODE_ENV
     value: production
     availability: [RUNTIME]
-  - variable: DATABASE_PROVIDER
-    value: postgresql
-    availability: [BUILD, RUNTIME]
   - variable: DATABASE_URL
     secret: schoolhouseDatabaseUrl
     availability: [BUILD, RUNTIME]

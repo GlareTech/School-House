@@ -1,13 +1,13 @@
 specVersion: "v1beta"
-serviceId: schoolhouse
-location: us-central1
+serviceId: school-house-service
+location: europe-west4
 schema:
   source: ./schema
   datasource:
     postgresql:
-      database: schoolhouse
+      database: school-house-db
       cloudSql:
-        instanceId: schoolhouse-sql
+        instanceId: school-house
         schemaValidation: COMPATIBLE
 connectorDirs:
   - ./admin

@@ -2,8 +2,8 @@ import { validateAdminArgs } from 'firebase-admin/data-connect';
 
 export const connectorConfig = {
   connector: 'schoolhouse-admin',
-  serviceId: 'schoolhouse',
-  location: 'us-central1'
+  serviceId: 'school-house-service',
+  location: 'europe-west4'
 };
 
 export function getDeploymentStatus(dcOrOptions, options) {
@@ -17,4 +17,3 @@ export function upsertDeploymentStatus(dcOrVarsOrOptions, varsOrOptions, options
   dcInstance.useGen(true);
   return dcInstance.executeMutation('UpsertDeploymentStatus', inputVars, inputOpts);
 }
-

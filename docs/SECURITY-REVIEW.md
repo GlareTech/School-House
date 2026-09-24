@@ -1,6 +1,6 @@
 # Security review
 
-This review covers authentication, cross-origin access, module controls, file delivery, uploads, role permissions, LAN/cloud operation, and the email/SMS delivery path. It is a source review and automated dependency check; production network, operating-system, provider-account, and penetration testing still belong in deployment acceptance.
+This review covers authentication, cross-origin access, module controls, file delivery, uploads, role permissions, Firebase deployment, and the email/SMS delivery path. It is a source review and automated dependency check; production network, provider-account, and penetration testing still belong in deployment acceptance.
 
 ## Applied controls
 
