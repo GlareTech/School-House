@@ -4,6 +4,7 @@ import { api, setCsrf } from './api';
 import { Admin } from './Admin';
 import { Student } from './Student';
 import {BrandImage} from './BrandImage';
+import {PublicSite} from './PublicSite';
 import './firebase';
 import './style.css';
 import './extras.css';
@@ -22,7 +23,7 @@ function App() {
     catch (err) { setError(err.message); }
   }
   if (loading) return <div className="loading">Opening Schoolhouse…</div>;
-  if (!user) return <main className="login"><section className="login-story"><div className="brand"><BrandImage src={settings.logoUrl} name={settings.schoolName}/><span>{settings.schoolName}</span></div><span className="eyebrow">{settings.tagline.toUpperCase()}</span><h1>A good day<br/>to learn.</h1><p>One secure workspace for your classrooms, examinations, and the people who make them matter.</p><div className="local-note"><span className="dot"/> Available anywhere your school works</div></section><section className="login-form"><span className="eyebrow">WELCOME BACK</span><h2>Sign in to {settings.schoolName}</h2><p className="muted">Use the account provided by your administrator.</p><form onSubmit={login}><label>Email address<input name="email" type="email" autoComplete="username" required placeholder="you@school.edu"/></label><label>Password<input name="password" type="password" autoComplete="current-password" required/></label>{error && <p role="alert" className="error">{error}</p>}<button disabled={busy}>{busy ? 'Signing in…' : 'Sign in →'}</button></form><small>Your school workspace is protected with secure sign-in.</small></section></main>;
+  if (!user) return <PublicSite onLogin={login}/>;
   return <>{error && <div role="alert" className="error">{error}</div>}{user.role === 'STUDENT' ? <Student user={user} settings={settings} logout={logout}/> : <Admin user={user} settings={settings} logout={logout}/>}</>;
 }
 class ErrorBoundary extends React.Component {

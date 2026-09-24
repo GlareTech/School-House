@@ -146,6 +146,16 @@ model Session {
   @@index([expiresAt])
 }
 
+model SignupIntent {
+  id           String   @id @default(cuid())
+  schoolName   String
+  name         String
+  email        String   @unique
+  passwordHash String
+  reference    String   @unique
+  createdAt    DateTime @default(now())
+}
+
 model Class {
   id                     String                  @id @default(cuid())
   name                   String                  @unique

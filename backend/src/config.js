@@ -48,6 +48,8 @@ export const config = z.object({
   FIREBASE_STORAGE_BUCKET: z.string().trim().default(''),
   CLOUD_SQL_INSTANCE: z.string().trim().default(''),
   FIREBASE_DATA_CONNECT_ENABLED: bool
+  ,PAYSTACK_SECRET_KEY: z.string().trim().default('')
+  ,PAYSTACK_PLAN_AMOUNT: z.coerce.number().int().positive().default(1500000)
 }).parse(rawConfig);
 if (config.FEATURE_CLOUD_SYNC && config.CLOUD_SYNC_URL) {
   const url = new URL(config.CLOUD_SYNC_URL);

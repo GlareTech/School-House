@@ -49,6 +49,26 @@ export function permit(permission) { return (req,res,next) => {
 }; }
 export const publicUser = u => ({ id:u.id, name:u.name, email:u.email, role:u.role, classId:u.classId, profilePictureId:u.profilePictureId||null, staffRole:u.staffRole ? { id:u.staffRole.id, name:u.staffRole.name } : null, permissions:u.role === 'ADMIN' ? PERMISSIONS : (u.staffRole?.grants || []).map(g => g.permission) });
 export function authRoutes(app) {
+  app.post('/api/auth/signup', async (req, res) => {
+    const input=z.object({schoolName:z.string().trim().min(2).max(120),name:z.string().trim().min(2).max(120),email:z.string().email().transform(v=>v.toLowerCase()),password:z.string().min(12).max(128)}).parse(req.body);
+    if(!config.PAYSTACK_SECRET_KEY)throw new HttpError(503,'Online subscription checkout is being configured');
+    if(await db.user.count({where:{role:'ADMIN'}}))throw new HttpError(409,'This workspace already has an owner');
+    const reference=`schoolhouse_${Date.now()}_${randomBytes(8).toString('hex')}`;
+    const passwordHash=await bcrypt.hash(input.password,12);
+    await db.signupIntent.create({data:{...input,passwordHash,reference}});
+    const response=await fetch('https://api.paystack.co/transaction/initialize',{method:'POST',headers:{Authorization:`Bearer ${config.PAYSTACK_SECRET_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({email:input.email,amount:config.PAYSTACK_PLAN_AMOUNT,reference,callback_url:`${config.APP_ORIGINS[0]}/?payment=${encodeURIComponent(reference)}`,metadata:{schoolName:input.schoolName}})});
+    const result=await response.json();
+    if(!response.ok||!result.status){await db.signupIntent.deleteMany({where:{reference}});throw new HttpError(502,'Unable to start subscription checkout');}
+    res.status(201).json({authorizationUrl:result.data.authorization_url});
+  });
+  app.post('/api/auth/signup/verify', async(req,res)=>{
+    const {reference}=z.object({reference:z.string().regex(/^schoolhouse_[A-Za-z0-9_]+$/)}).parse(req.body);
+    const intent=await db.signupIntent.findUnique({where:{reference}});if(!intent)throw new HttpError(404,'Signup session not found');
+    const response=await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,{headers:{Authorization:`Bearer ${config.PAYSTACK_SECRET_KEY}`}});const result=await response.json();
+    if(!response.ok||result.data?.status!=='success'||result.data.amount!==config.PAYSTACK_PLAN_AMOUNT||result.data.customer?.email?.toLowerCase()!==intent.email)throw new HttpError(402,'Payment has not been verified');
+    const user=await db.$transaction(async tx=>{const created=await tx.user.create({data:{email:intent.email,name:intent.name,passwordHash:intent.passwordHash,role:'ADMIN'}});await tx.appSetting.upsert({where:{id:'global'},create:{id:'global',schoolName:intent.schoolName,gradingScale:[]},update:{schoolName:intent.schoolName}});await tx.signupIntent.delete({where:{id:intent.id}});return created;});
+    res.json({ok:true,email:user.email});
+  });
   app.post('/api/auth/login', async (req, res) => {
     const input = z.object({ email: z.string().email().max(254).transform(s => s.toLowerCase()), password: z.string().max(128) }).parse(req.body);
     // Fail closed for new logins if the shared abuse-control store is unavailable.

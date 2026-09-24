@@ -39,6 +39,9 @@ env:
   - variable: FEATURE_SETTINGS_FILE
     value: config/features.json
     availability: [BUILD, RUNTIME]
+  - variable: PAYSTACK_PLAN_AMOUNT
+    value: "1500000"
+    availability: [RUNTIME]
 
 scripts:
   buildCommand: npm run build
