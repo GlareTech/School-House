@@ -46,13 +46,22 @@ const sweep = setInterval(async () => {
   try { await expireAttempts(io); } catch (err) { logger.error({ err }, 'Deadline sweep failed'); }
   finally { sweepBusy = false; }
 }, 2000);
-await db.$connect();
-if(config.FIREBASE_DATA_CONNECT_ENABLED){
-  const firebaseApp=getApps()[0]||initializeApp();
-  await upsertDeploymentStatus(getDataConnect(connectorConfig,firebaseApp),{environment:config.NODE_ENV,schemaVersion:'1.8.3'});
-  logger.info('Firebase SQL Connect ready');
-}
 http.listen(config.PORT, '0.0.0.0', () => logger.info({ port: config.PORT }, 'Schoolhouse SaaS API ready'));
+async function initializeServices() {
+  await db.$connect();
+  logger.info('Cloud SQL ready');
+  if (config.FIREBASE_DATA_CONNECT_ENABLED) {
+    try {
+      const firebaseApp = getApps()[0] || initializeApp();
+      await upsertDeploymentStatus(getDataConnect(connectorConfig, firebaseApp), { environment: config.NODE_ENV, schemaVersion: '1.8.3' });
+      logger.info('Firebase SQL Connect ready');
+    } catch (err) {
+      // SQL Connect is deployment telemetry; Prisma remains the application data path.
+      logger.warn({ err }, 'Firebase SQL Connect status update unavailable');
+    }
+  }
+}
+initializeServices().catch(err => logger.error({ err }, 'Cloud SQL initialization failed'));
 let stopping = false;
 for (const signal of ['SIGINT','SIGTERM']) process.on(signal, async () => {
   if (stopping) return; stopping = true; clearInterval(sweep);
