@@ -32,7 +32,7 @@ export function platformRouter(){
     const admin=await db.platformAdmin.findUnique({where:{email:input.email}}),valid=await bcrypt.compare(input.password,admin?.passwordHash||'$2b$12$C6UzMDM.H6dfI/f/IKcEe.6JdB5vCkDmrxRerAY.VnwkAebwkNQpe');
     if(!admin?.active||!valid)throw new HttpError(401,'Invalid platform administrator credentials');
     const token=randomBytes(32).toString('hex'),csrf=randomBytes(32).toString('hex'),expiresAt=new Date(Date.now()+config.SESSION_HOURS*3600000);
-    await db.$transaction([db.platformSession.deleteMany({where:{adminId:admin.id}}),db.platformSession.create({data:{id:hash(token),adminId:admin.id,csrf,expiresAt}}),db.platformAdmin.update({where:{id:admin.id},data:{lastLoginAt:new Date()}})]);
+    await db.$transaction(async tx=>{await tx.platformSession.deleteMany({where:{adminId:admin.id}});await tx.platformSession.create({data:{id:hash(token),adminId:admin.id,csrf,expiresAt}});await tx.platformAdmin.update({where:{id:admin.id},data:{lastLoginAt:new Date()}})});
     res.cookie('school_platform_session',token,{...cookieOptions,expires:expiresAt}).json({admin:{name:admin.name,email:admin.email},csrf});
   });
   r.get('/me',authenticatePlatform,(req,res)=>res.json({admin:{name:req.platformAdmin.name,email:req.platformAdmin.email},csrf:req.platformSession.csrf}));
