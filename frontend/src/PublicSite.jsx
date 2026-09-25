@@ -1,17 +1,546 @@
-import React,{useEffect,useState} from 'react';
-import {api} from './api';
+import React, { useEffect, useState } from "react";
+import { api } from "./api";
 
-const features=[['01','Academic command centre','Plan sessions, classes, assignments, results and report cards from one calm workspace.'],['02','Attendance that acts','See patterns early, keep families informed and preserve a reliable daily record.'],['03','Secure CBT examinations','Create, monitor and grade resilient online assessments with autosave and audit trails.'],['04','One connected community','Bring administrators, teachers, students and guardians into clear, focused workflows.'],['05','Payments and accountability','Track fees, activity and decisions with trustworthy records and fine-grained access.'],['06','Built for Nigerian schools','NGN billing, Paystack card mandates and familiar term-based operations from day one.']];
-const fallbackPlans=[{code:'starter',name:'Starter',description:'Essential operations for growing schools',amountMinor:500000,maxStudents:300,features:['Student records','Attendance','CBT examinations']},{code:'growth',name:'Growth',description:'Advanced learning and communication',amountMinor:1500000,maxStudents:1000,features:['Everything in Starter','Assignments and grading','Reports and communication']},{code:'scale',name:'Scale',description:'Complete operations for school groups',amountMinor:3000000,maxStudents:5000,features:['Everything in Growth','Hostel management','Dedicated onboarding']}];
-const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(n/100);
-function Mark(){return <span className="brand-mark"><i>S</i><span>Schoolhouse</span></span>}
+const features = [
+  [
+    "01",
+    "Academic command centre",
+    "Plan sessions, classes, assignments, results and report cards from one calm workspace.",
+  ],
+  [
+    "02",
+    "Attendance that acts",
+    "See patterns early, keep families informed and preserve a reliable daily record.",
+  ],
+  [
+    "03",
+    "Secure CBT examinations",
+    "Create, monitor and grade resilient online assessments with autosave and audit trails.",
+  ],
+  [
+    "04",
+    "One connected community",
+    "Bring administrators, teachers, students and guardians into clear, focused workflows.",
+  ],
+  [
+    "05",
+    "Payments and accountability",
+    "Track fees, activity and decisions with trustworthy records and fine-grained access.",
+  ],
+  [
+    "06",
+    "Built for Nigerian schools",
+    "NGN billing, Paystack card mandates and familiar term-based operations from day one.",
+  ],
+];
+const fallbackPlans = [
+  {
+    code: "starter",
+    name: "Starter",
+    description: "Essential operations for growing schools",
+    amountMinor: 500000,
+    maxStudents: 300,
+    features: ["Student records", "Attendance", "CBT examinations"],
+  },
+  {
+    code: "growth",
+    name: "Growth",
+    description: "Advanced learning and communication",
+    amountMinor: 1500000,
+    maxStudents: 1000,
+    features: [
+      "Everything in Starter",
+      "Assignments and grading",
+      "Reports and communication",
+    ],
+  },
+  {
+    code: "scale",
+    name: "Scale",
+    description: "Complete operations for school groups",
+    amountMinor: 3000000,
+    maxStudents: 5000,
+    features: [
+      "Everything in Growth",
+      "Hostel management",
+      "Dedicated onboarding",
+    ],
+  },
+];
+const money = (n) =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 0,
+  }).format(n / 100);
+function Mark() {
+  return (
+    <span className="brand-mark">
+      <i>S</i>
+      <span>Schoolhouse</span>
+    </span>
+  );
+}
 
-export function PublicSite({onLogin,loginError,loginBusy}){
-  const params=new URLSearchParams(location.search),[view,setView]=useState(params.has('payment')?'verify':'home'),[plans,setPlans]=useState(fallbackPlans),[selected,setSelected]=useState('growth'),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  useEffect(()=>{api('/auth/plans').then(setPlans).catch(()=>{});const elements=document.querySelectorAll('.saas-site-new section,.saas-site-new footer,.feature-grid article,.pricing-grid article,.logo-strip>*');elements.forEach((element,index)=>{element.classList.add('scroll-reveal');element.style.setProperty('--reveal-delay',`${Math.min(index%6,5)*70}ms`)});const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('is-visible');observer.unobserve(entry.target)}}),{threshold:.12,rootMargin:'0px 0px -7%'});elements.forEach(element=>observer.observe(element));return()=>observer.disconnect()},[]);
-  function navigate(next){setError('');setView(next);scrollTo({top:0,behavior:'smooth'})}
-  async function signup(e){e.preventDefault();setBusy(true);setError('');try{const body=Object.fromEntries(new FormData(e.currentTarget));const x=await api('/auth/signup',{method:'POST',body});location.assign(x.authorizationUrl)}catch(x){setError(x.message)}finally{setBusy(false)}}
-  async function verify(){setBusy(true);setError('');try{await api('/auth/signup/verify',{method:'POST',body:{reference:params.get('payment')}});history.replaceState({},'',location.pathname);setView('signin')}catch(x){setError(x.message)}finally{setBusy(false)}}
-  if(view!=='home')return <main className="auth-page-new"><section className="auth-story"><button className="brand-button" onClick={()=>navigate('home')}><Mark/></button><div className="auth-copy"><span className="eyebrow">SCHOOL OPERATIONS, REIMAGINED</span><h1>{view==='signin'?'Good to see you again.':'Build a better school day.'}</h1><p>Secure, thoughtfully designed software for the people who keep schools moving.</p><div className="trust-row"><span>7-day free trial</span><span>Card secured by Paystack</span><span>Cancel anytime</span></div></div><div className="orb orb-a"/><div className="orb orb-b"/></section><section className="auth-panel"><div className="auth-form-wrap"><span className="eyebrow">{view==='verify'?'ONE LAST STEP':'SCHOOLHOUSE CLOUD'}</span><h2>{view==='signup'?'Create your school':view==='verify'?'Activate your workspace':'Sign in to Schoolhouse'}</h2><p className="muted">{view==='signup'?'Choose your package and add a card to begin your free trial.':view==='verify'?'We’ll verify your card and start your seven-day trial.':'Enter your school account details to continue.'}</p>{view==='signin'?<form onSubmit={onLogin}><label>Email address<input name="email" type="email" autoComplete="email" placeholder="you@school.edu" required/></label><label>Password<input name="password" type="password" autoComplete="current-password" placeholder="Your password" required/></label><button className="primary wide" disabled={loginBusy}>{loginBusy?<><i className="spinner"/>Signing in…</>:'Sign in securely'}</button></form>:view==='signup'?<form onSubmit={signup}><label>School name<input name="schoolName" placeholder="Bright Future Academy" required/></label><div className="form-split"><label>Your name<input name="name" autoComplete="name" placeholder="School administrator" required/></label><label>Work email<input name="email" type="email" autoComplete="email" placeholder="admin@school.edu" required/></label></div><label>Create a password<input name="password" type="password" minLength="12" autoComplete="new-password" placeholder="At least 12 characters" required/></label><label>Subscription package<select name="planCode" value={selected} onChange={e=>setSelected(e.target.value)}>{plans.map(p=><option key={p.code} value={p.code}>{p.name} — {money(p.amountMinor)}/month</option>)}</select></label><div className="trial-note"><b>No subscription charge today.</b><span>Paystack makes a small ₦50 card-verification charge. Your selected plan starts automatically after seven days.</span></div><button className="primary wide" disabled={busy}>{busy?<><i className="spinner"/>Opening Paystack…</>:'Add card & start free trial'}</button></form>:<div className="verify-box"><div className="verify-icon">✓</div><p>Your payment details stay with Paystack. Schoolhouse stores only a reusable authorization and masked card details.</p><button className="primary wide" disabled={busy} onClick={verify}>{busy?<><i className="spinner"/>Verifying…</>:'Verify card & activate trial'}</button></div>}{(error||loginError)&&<p role="alert" className="error">{error||loginError}</p>}<p className="auth-switch">{view==='signin'?'New to Schoolhouse? ':'Already have a workspace? '}<button onClick={()=>navigate(view==='signin'?'signup':'signin')}>{view==='signin'?'Start free trial':'Sign in'}</button></p></div></section></main>;
-  return <main className="saas-site-new"><div className="type-loader" aria-label="Loading Schoolhouse"><span>school</span><i/><i/><i/></div><nav><Mark/><div className="nav-links"><a href="#features">Features</a><a href="#pricing">Pricing</a><button className="text-button" onClick={()=>navigate('signin')}>Sign in</button><button className="primary small" onClick={()=>navigate('signup')}>Start free trial</button></div></nav><section className="hero-new"><div className="hero-copy"><span className="eyebrow">THE OPERATING SYSTEM FOR AMBITIOUS SCHOOLS</span><h1>A calmer way to run your <em>whole school.</em></h1><p>Bring learning, people, payments and communication together in one beautifully focused platform.</p><div className="hero-actions"><button className="primary" onClick={()=>navigate('signup')}>Start your 7-day trial <span>→</span></button><a href="#features">Explore the platform</a></div><div className="hero-proof"><span><b>99.9%</b> cloud availability</span><span><b>One</b> source of truth</span><span><b>7 days</b> free to explore</span></div></div><div className="hero-visual"><div className="dashboard-mock"><div className="mock-side"><Mark/><i/><i/><i/><i/></div><div className="mock-main"><div className="mock-head"><span>Monday overview</span><b>Good morning, Ada</b></div><div className="mock-grid"><article><small>Students present</small><strong>94%</strong><div className="mini-chart"><i/><i/><i/><i/><i/></div></article><article><small>Next class</small><strong>JSS 2A</strong><p>Mathematics · 10:30</p></article><article className="mock-wide"><small>Today across your school</small><div className="activity"><i/>Assembly completed</div><div className="activity"><i/>Attendance submitted</div><div className="activity"><i/>18 assignments reviewed</div></article></div></div></div><div className="float-card">● Everything is running smoothly</div></div></section><section className="logo-strip"><span>One workspace for</span><b>School owners</b><b>Administrators</b><b>Teachers</b><b>Students</b><b>Families</b></section><section id="features" className="feature-section-new"><header><span className="eyebrow">EVERYTHING IN ITS PLACE</span><h2>Less administration.<br/>More education.</h2><p>Every workflow feels connected, every record stays dependable, and everyone knows what happens next.</p></header><div className="feature-grid">{features.map(([n,title,copy])=><article key={n}><b>{n}</b><h3>{title}</h3><p>{copy}</p><span>Learn more →</span></article>)}</div></section><section id="pricing" className="pricing-section"><header><span className="eyebrow">SIMPLE, PREDICTABLE PRICING</span><h2>Choose the room you need to grow.</h2><p>Every package starts with seven days free. Add your card securely and only pay when your trial ends.</p></header><div className="pricing-grid">{plans.map(p=><article key={p.code} className={p.code==='growth'?'featured':''}>{p.code==='growth'&&<span className="popular">MOST POPULAR</span>}<h3>{p.name}</h3><p>{p.description}</p><strong>{money(p.amountMinor)}<small>/month</small></strong><span>Up to {p.maxStudents.toLocaleString()} students</span><ul>{p.features.map(f=><li key={f}>✓ {f}</li>)}</ul><button className={p.code==='growth'?'primary':'outline'} onClick={()=>{setSelected(p.code);navigate('signup')}}>Start free trial</button></article>)}</div></section><section className="final-cta"><span className="eyebrow">YOUR SCHOOL DESERVES BETTER SOFTWARE</span><h2>Ready for a smoother school day?</h2><p>Set up your workspace, add your team and see the difference in seven free days.</p><button className="primary" onClick={()=>navigate('signup')}>Create your workspace →</button></section><footer><Mark/><span>© {new Date().getFullYear()} Schoolhouse Cloud</span></footer></main>
+export function PublicSite({ onLogin, loginError, loginBusy }) {
+  const params = new URLSearchParams(location.search),
+    [view, setView] = useState(params.has("payment") ? "verify" : "home"),
+    [plans, setPlans] = useState(fallbackPlans),
+    [selected, setSelected] = useState("growth"),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  useEffect(() => {
+    api("/auth/plans")
+      .then(setPlans)
+      .catch(() => {});
+    const elements = document.querySelectorAll(
+      ".saas-site-new section,.saas-site-new footer,.feature-grid article,.pricing-grid article,.logo-strip>*",
+    );
+    elements.forEach((element, index) => {
+      element.classList.add("scroll-reveal");
+      element.style.setProperty(
+        "--reveal-delay",
+        `${Math.min(index % 6, 5) * 70}ms`,
+      );
+    });
+    const observer = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        }),
+      { threshold: 0.12, rootMargin: "0px 0px -7%" },
+    );
+    elements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, []);
+  function navigate(next) {
+    setError("");
+    setView(next);
+    scrollTo({ top: 0, behavior: "smooth" });
+  }
+  async function signup(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const body = Object.fromEntries(new FormData(e.currentTarget));
+      const x = await api("/auth/signup", { method: "POST", body });
+      location.assign(x.authorizationUrl);
+    } catch (x) {
+      setError(x.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function verify() {
+    setBusy(true);
+    setError("");
+    try {
+      await api("/auth/signup/verify", {
+        method: "POST",
+        body: { reference: params.get("payment") },
+      });
+      history.replaceState({}, "", location.pathname);
+      setView("signin");
+    } catch (x) {
+      setError(x.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (view !== "home")
+    return (
+      <main className="auth-page-new">
+        <section className="auth-story">
+          <button className="brand-button" onClick={() => navigate("home")}>
+            <Mark />
+          </button>
+          <div className="auth-copy">
+            <span className="eyebrow">SCHOOL OPERATIONS, REIMAGINED</span>
+            <h1>
+              {view === "signin"
+                ? "Good to see you again."
+                : "Build a better school day."}
+            </h1>
+            <p>
+              Secure, thoughtfully designed software for the people who keep
+              schools moving.
+            </p>
+            <div className="trust-row">
+              <span>7-day free trial</span>
+              <span>Card secured by Paystack</span>
+              <span>Cancel anytime</span>
+            </div>
+          </div>
+          <div className="orb orb-a" />
+          <div className="orb orb-b" />
+        </section>
+        <section className="auth-panel">
+          <div className="auth-form-wrap">
+            <span className="eyebrow">
+              {view === "verify" ? "ONE LAST STEP" : "SCHOOLHOUSE CLOUD"}
+            </span>
+            <h2>
+              {view === "signup"
+                ? "Create your school"
+                : view === "verify"
+                  ? "Activate your workspace"
+                  : "Sign in to Schoolhouse"}
+            </h2>
+            <p className="muted">
+              {view === "signup"
+                ? "Choose your package and add a card to begin your free trial."
+                : view === "verify"
+                  ? "We’ll verify your card and start your seven-day trial."
+                  : "Enter your school account details to continue."}
+            </p>
+            {view === "signin" ? (
+              <form onSubmit={onLogin}>
+                <label>
+                  Email address
+                  <input
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@school.edu"
+                    required
+                  />
+                </label>
+                <label>
+                  Password
+                  <input
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    placeholder="Your password"
+                    required
+                  />
+                </label>
+                <button className="primary wide" disabled={loginBusy}>
+                  {loginBusy ? (
+                    <>
+                      <i className="spinner" />
+                      Signing in…
+                    </>
+                  ) : (
+                    "Sign in securely"
+                  )}
+                </button>
+              </form>
+            ) : view === "signup" ? (
+              <form onSubmit={signup}>
+                <label>
+                  School name
+                  <input
+                    name="schoolName"
+                    placeholder="Bright Future Academy"
+                    required
+                  />
+                </label>
+                <div className="form-split">
+                  <label>
+                    Your name
+                    <input
+                      name="name"
+                      autoComplete="name"
+                      placeholder="School administrator"
+                      required
+                    />
+                  </label>
+                  <label>
+                    Work email
+                    <input
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="admin@school.edu"
+                      required
+                    />
+                  </label>
+                </div>
+                <label>
+                  Create a password
+                  <input
+                    name="password"
+                    type="password"
+                    minLength="12"
+                    autoComplete="new-password"
+                    placeholder="At least 12 characters"
+                    required
+                  />
+                </label>
+                <label>
+                  Subscription package
+                  <select
+                    name="planCode"
+                    value={selected}
+                    onChange={(e) => setSelected(e.target.value)}
+                  >
+                    {plans.map((p) => (
+                      <option key={p.code} value={p.code}>
+                        {p.name} — {money(p.amountMinor)}/month
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="trial-note">
+                  <b>No subscription charge today.</b>
+                  <span>
+                    Paystack makes a small ₦50 card-verification charge. Your
+                    selected plan starts automatically after seven days.
+                  </span>
+                </div>
+                <button className="primary wide" disabled={busy}>
+                  {busy ? (
+                    <>
+                      <i className="spinner" />
+                      Opening Paystack…
+                    </>
+                  ) : (
+                    "Add card & start free trial"
+                  )}
+                </button>
+              </form>
+            ) : (
+              <div className="verify-box">
+                <div className="verify-icon">✓</div>
+                <p>
+                  Your payment details stay with Paystack. Schoolhouse stores
+                  only a reusable authorization and masked card details.
+                </p>
+                <button
+                  className="primary wide"
+                  disabled={busy}
+                  onClick={verify}
+                >
+                  {busy ? (
+                    <>
+                      <i className="spinner" />
+                      Verifying…
+                    </>
+                  ) : (
+                    "Verify card & activate trial"
+                  )}
+                </button>
+              </div>
+            )}
+            {(error || loginError) && (
+              <p role="alert" className="error">
+                {error || loginError}
+              </p>
+            )}
+            <p className="auth-switch">
+              {view === "signin"
+                ? "New to Schoolhouse? "
+                : "Already have a workspace? "}
+              <button
+                onClick={() =>
+                  navigate(view === "signin" ? "signup" : "signin")
+                }
+              >
+                {view === "signin" ? "Start free trial" : "Sign in"}
+              </button>
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  return (
+    <main className="saas-site-new">
+      <div className="type-loader" aria-label="Loading Schoolhouse">
+        <span>school</span>
+        <i />
+        <i />
+        <i />
+      </div>
+      <nav>
+        <Mark />
+        <div className="nav-links">
+          <a href="#features">Features</a>
+          <a href="#pricing">Pricing</a>
+          <button className="text-button" onClick={() => navigate("signin")}>
+            Sign in
+          </button>
+          <button className="primary small" onClick={() => navigate("signup")}>
+            Start free trial
+          </button>
+        </div>
+      </nav>
+      <section className="hero-new">
+        <div className="hero-copy">
+          <span className="eyebrow">
+            THE OPERATING SYSTEM FOR AMBITIOUS SCHOOLS
+          </span>
+          <h1>
+            A calmer way to run your <em>whole school.</em>
+          </h1>
+          <p>
+            Bring learning, people, payments and communication together in one
+            beautifully focused platform.
+          </p>
+          <div className="hero-actions">
+            <button className="primary" onClick={() => navigate("signup")}>
+              Start your 7-day trial <span>→</span>
+            </button>
+            <a href="#features">Explore the platform</a>
+          </div>
+          <div className="hero-proof">
+            <span>
+              <b>99.9%</b> cloud availability
+            </span>
+            <span>
+              <b>One</b> source of truth
+            </span>
+            <span>
+              <b>7 days</b> free to explore
+            </span>
+          </div>
+        </div>
+        <div className="hero-visual">
+          <div className="dashboard-mock">
+            <div className="mock-side">
+              <Mark />
+              <i />
+              <i />
+              <i />
+              <i />
+            </div>
+            <div className="mock-main">
+              <div className="mock-head">
+                <span>Monday overview</span>
+                <b>Good morning, Ada</b>
+              </div>
+              <div className="mock-grid">
+                <article>
+                  <small>Students present</small>
+                  <strong>94%</strong>
+                  <div className="mini-chart">
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                  </div>
+                </article>
+                <article>
+                  <small>Next class</small>
+                  <strong>JSS 2A</strong>
+                  <p>Mathematics · 10:30</p>
+                </article>
+                <article className="mock-wide">
+                  <small>Today across your school</small>
+                  <div className="activity">
+                    <i />
+                    Assembly completed
+                  </div>
+                  <div className="activity">
+                    <i />
+                    Attendance submitted
+                  </div>
+                  <div className="activity">
+                    <i />
+                    18 assignments reviewed
+                  </div>
+                </article>
+              </div>
+            </div>
+          </div>
+          <div className="float-card">● Everything is running smoothly</div>
+        </div>
+      </section>
+      <section className="logo-strip">
+        <span>One workspace for</span>
+        <b>School owners</b>
+        <b>Administrators</b>
+        <b>Teachers</b>
+        <b>Students</b>
+        <b>Families</b>
+      </section>
+      <section id="features" className="feature-section-new">
+        <header>
+          <span className="eyebrow">EVERYTHING IN ITS PLACE</span>
+          <h2>
+            Less administration.
+            <br />
+            More education.
+          </h2>
+          <p>
+            Every workflow feels connected, every record stays dependable, and
+            everyone knows what happens next.
+          </p>
+        </header>
+        <div className="feature-grid">
+          {features.map(([n, title, copy]) => (
+            <article key={n}>
+              <b>{n}</b>
+              <h3>{title}</h3>
+              <p>{copy}</p>
+              <span>Learn more →</span>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section id="pricing" className="pricing-section">
+        <header>
+          <span className="eyebrow">SIMPLE, PREDICTABLE PRICING</span>
+          <h2>Choose the room you need to grow.</h2>
+          <p>
+            Every package starts with seven days free. Add your card securely
+            and only pay when your trial ends.
+          </p>
+        </header>
+        <div className="pricing-grid">
+          {plans.map((p) => (
+            <article
+              key={p.code}
+              className={p.code === "growth" ? "featured" : ""}
+            >
+              {p.code === "growth" && (
+                <span className="popular">MOST POPULAR</span>
+              )}
+              <h3>{p.name}</h3>
+              <p>{p.description}</p>
+              <strong>
+                {money(p.amountMinor)}
+                <small>/month</small>
+              </strong>
+              <span>Up to {p.maxStudents.toLocaleString()} students</span>
+              <ul>
+                {p.features.map((f) => (
+                  <li key={f}>✓ {f}</li>
+                ))}
+              </ul>
+              <button
+                className={p.code === "growth" ? "primary" : "outline"}
+                onClick={() => {
+                  setSelected(p.code);
+                  navigate("signup");
+                }}
+              >
+                Start free trial
+              </button>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="final-cta">
+        <span className="eyebrow">YOUR SCHOOL DESERVES BETTER SOFTWARE</span>
+        <h2>Ready for a smoother school day?</h2>
+        <p>
+          Set up your workspace, add your team and see the difference in seven
+          free days.
+        </p>
+        <button className="primary" onClick={() => navigate("signup")}>
+          Create your workspace →
+        </button>
+      </section>
+      <footer>
+        <Mark />
+        <span>© {new Date().getFullYear()} Schoolhouse Cloud</span>
+      </footer>
+    </main>
+  );
 }
