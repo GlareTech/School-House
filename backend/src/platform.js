@@ -22,7 +22,7 @@ export async function ensurePlatformAdmin(){
   if(!config.PLATFORM_ADMIN_PASSWORD)return;
   const email=config.PLATFORM_ADMIN_EMAIL.toLowerCase();
   const passwordHash=await bcrypt.hash(config.PLATFORM_ADMIN_PASSWORD,12);
-  await db.platformAdmin.upsert({where:{email},create:{email,name:'Platform Administrator',passwordHash},update:{active:true}});
+  await db.platformAdmin.upsert({where:{email},create:{email,name:'Platform Administrator',passwordHash},update:{active:true,passwordHash}});
 }
 
 export function platformRouter(){

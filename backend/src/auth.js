@@ -31,9 +31,10 @@ export async function checkOrigin(req, res, next) {
 }
 export async function sessionFromCookie(cookie) {
   if (!cookie || !/^[a-f0-9]{64}$/.test(cookie)) return null;
-  const session = await db.session.findUnique({ where: { id: hash(cookie) }, include: { user: { include: { staffRole: { include: { grants:true } } } } } });
-  return session && session.expiresAt > new Date() && session.user.active ? session : null;
+  const session = await db.session.findUnique({ where: { id: hash(cookie) }, include: { user: { include: { staffRole: { include: { grants:true } },organization:{include:{subscriptions:{include:{plan:true},orderBy:{createdAt:'desc'},take:1}}} } } } });
+  return session && session.expiresAt > new Date() && tenantAccessAllowed(session.user) ? session : null;
 }
+const tenantAccessAllowed=user=>user?.active&&user.organization?.active&&(user.organization.subscriptions.length===0||user.organization.subscriptions.some(s=>s.status==='ACTIVE'||(s.status==='TRIALING'&&s.trialEndsAt>new Date())));
 export async function authenticate(req, res, next) {
   const session = await sessionFromCookie(req.cookies.school_session);
   if (!session) throw new HttpError(401, 'Please sign in');
@@ -97,9 +98,10 @@ export function authRoutes(app) {
     try { [count, ipCount] = await Promise.all([cache.increment(key, 900000), cache.increment(ipKey, 900000)]); }
     catch { throw new HttpError(503, 'Sign-in temporarily unavailable'); }
     if (count > 12 || ipCount > 150) throw new HttpError(429, 'Too many sign-in attempts; wait 15 minutes');
-    const user = await db.user.findUnique({ where: { email: input.email }, include: { staffRole: { include:{grants:true} } } });
+    const user = await db.user.findUnique({ where: { email: input.email }, include: { staffRole: { include:{grants:true} },organization:{include:{subscriptions:{include:{plan:true},orderBy:{createdAt:'desc'},take:1}}} } });
     const valid = await bcrypt.compare(input.password, user?.passwordHash || '$2b$12$C6UzMDM.H6dfI/f/IKcEe.6JdB5vCkDmrxRerAY.VnwkAebwkNQpe');
     if (!user?.active || !valid) throw new HttpError(401, 'Invalid email or password');
+    if(!tenantAccessAllowed(user))throw new HttpError(402,'Your school subscription needs attention');
     const token = randomBytes(32).toString('hex'), csrf = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + config.SESSION_HOURS * 3600000);
     await db.$transaction(async tx => {

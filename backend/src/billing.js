@@ -1,5 +1,7 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { config } from './config.js';
 import { HttpError } from './domain.js';
+import { db } from './db.js';
 
 const endpoint = 'https://api.paystack.co';
 
@@ -32,3 +34,13 @@ export async function sendWelcomeEmail({ email, name, schoolName, trialEndsAt, p
 
 const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 
+export async function paystackWebhook(req,res){
+  const signature=String(req.headers['x-paystack-signature']||''),expected=createHmac('sha512',config.PAYSTACK_SECRET_KEY).update(req.body).digest('hex');
+  if(signature.length!==expected.length||!timingSafeEqual(Buffer.from(signature),Buffer.from(expected)))return res.sendStatus(401);
+  const event=JSON.parse(req.body.toString('utf8')),code=event.data?.subscription_code||event.data?.subscription?.subscription_code;
+  if(code){
+    const status=event.event==='invoice.payment_failed'?'PAST_DUE':event.event==='subscription.disable'?'CANCELLED':['charge.success','subscription.create'].includes(event.event)?'ACTIVE':null;
+    if(status)await db.subscription.updateMany({where:{paystackSubscriptionCode:code},data:{status,...(status==='CANCELLED'?{cancelledAt:new Date()}:{}),...(event.data?.next_payment_date?{nextChargeAt:new Date(event.data.next_payment_date)}:{})}});
+  }
+  res.sendStatus(200);
+}

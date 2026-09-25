@@ -8,40 +8,55 @@ runConfig:
 env:
   - variable: NODE_ENV
     value: production
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
   - variable: DATABASE_URL
     value: postgresql://firebase-app-hosting-compute%40ife-psyche.iam@localhost/school-house-db?schema=public&connection_limit=10
-    availability: [BUILD, RUNTIME]
+    availability: [ BUILD, RUNTIME ]
   - variable: APP_ORIGINS
     value: https://school-house--ife-psyche.europe-west4.hosted.app
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
   - variable: COOKIE_SECURE
     value: "true"
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
   - variable: COOKIE_SAME_SITE
     value: lax
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
   - variable: TRUST_PROXY
     value: "1"
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
   - variable: SITE_ID
     value: school-house
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
   - variable: FIREBASE_STORAGE_BUCKET
     value: ife-psyche.firebasestorage.app
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
   - variable: CLOUD_SQL_INSTANCE
     value: ife-psyche:europe-west4:school-house
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
   - variable: FIREBASE_DATA_CONNECT_ENABLED
     value: "true"
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
   - variable: FEATURE_SETTINGS_FILE
     value: config/features.json
-    availability: [BUILD, RUNTIME]
-  - variable: PAYSTACK_PLAN_AMOUNT
-    value: "1500000"
-    availability: [RUNTIME]
+    availability: [ BUILD, RUNTIME ]
+  - variable: PAYSTACK_TOKEN_AMOUNT
+    value: "5000"
+    availability: [ RUNTIME ]
+  - variable: PAYSTACK_SECRET_KEY
+    secret: schoolhousePaystackSecretKey
+    availability: [ RUNTIME ]
+  - variable: RESEND_API_KEY
+    secret: schoolhouseResendApiKey
+    availability: [ RUNTIME ]
+  - variable: RESEND_FROM
+    value: Schoolhouse <onboarding@resend.dev>
+    availability: [ RUNTIME ]
+  - variable: PLATFORM_ADMIN_EMAIL
+    value: admin@techinvasion.com.ng
+    availability: [ RUNTIME ]
+  - variable: PLATFORM_ADMIN_PASSWORD
+    secret: schoolhousePlatformAdminPassword
+    availability: [ RUNTIME ]
 
 scripts:
   buildCommand: npm run build
