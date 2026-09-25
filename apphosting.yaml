@@ -13,7 +13,7 @@ env:
     value: postgresql://firebase-app-hosting-compute%40ife-psyche.iam@localhost/school-house-db?schema=public&connection_limit=10
     availability: [ BUILD, RUNTIME ]
   - variable: APP_ORIGINS
-    value: https://school-house--ife-psyche.europe-west4.hosted.app,https://schoolhouse.techinvasion.com.ng
+    value: https://schoolhouse.techinvasion.com.ng,https://school-house--ife-psyche.europe-west4.hosted.app
     availability: [ RUNTIME ]
   - variable: COOKIE_SECURE
     value: "true"

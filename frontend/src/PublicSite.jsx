@@ -525,6 +525,38 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
             </article>
           ))}
         </div>
+        <aside className="lifetime-offer">
+          <div>
+            <span className="eyebrow">A DIFFERENT WAY TO OWN IT</span>
+            <h3>Want a complete online solution with no monthly or yearly fee?</h3>
+            <p>Choose a one-time payment package tailored to your school. Contact us for more information.</p>
+          </div>
+          <a className="outline" href="mailto:admin@techinvasion.com.ng?subject=Schoolhouse%20one-time%20payment%20solution">
+            Contact us
+          </a>
+        </aside>
+      </section>
+      <section className="other-services">
+        <div className="service-copy">
+          <span className="eyebrow">OTHER SERVICES</span>
+          <h2>Want a website for your school?</h2>
+          <p>
+            Give parents and prospective students a polished place to discover
+            your school, explore admissions, read updates and get in touch.
+          </p>
+          <a className="primary" href="mailto:admin@techinvasion.com.ng?subject=Website%20for%20my%20school">
+            Let&apos;s build your school website
+          </a>
+        </div>
+        <div className="website-preview" aria-hidden="true">
+          <div className="preview-bar"><i/><i/><i/></div>
+          <div className="preview-hero">
+            <span>WELCOME TO</span>
+            <strong>Your School</strong>
+            <small>Learning today. Leading tomorrow.</small>
+          </div>
+          <div className="preview-cards"><i/><i/><i/></div>
+        </div>
       </section>
       <section className="final-cta">
         <span className="eyebrow">YOUR SCHOOL DESERVES BETTER SOFTWARE</span>
