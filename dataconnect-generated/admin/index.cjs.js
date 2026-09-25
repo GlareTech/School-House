@@ -20,3 +20,4 @@ function upsertDeploymentStatus(dcOrVarsOrOptions, varsOrOptions, options) {
   return dcInstance.executeMutation('UpsertDeploymentStatus', inputVars, inputOpts);
 }
 exports.upsertDeploymentStatus = upsertDeploymentStatus;
+

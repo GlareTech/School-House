@@ -37,6 +37,61 @@ export function platformRouter(){
   });
   r.get('/me',authenticatePlatform,(req,res)=>res.json({admin:{name:req.platformAdmin.name,email:req.platformAdmin.email},csrf:req.platformSession.csrf}));
   r.post('/logout',authenticatePlatform,async(req,res)=>{await db.platformSession.delete({where:{id:req.platformSession.id}});res.clearCookie('school_platform_session',cookieOptions).json({ok:true});});
+  r.get('/plans',authenticatePlatform,async(_req,res)=>{
+    const plans=await db.subscriptionPlan.findMany({orderBy:{amountMinor:'asc'}});
+    res.json(plans.map(plan=>({...plan,features:Array.isArray(plan.features)?plan.features:[]})))
+  });
+  r.post('/plans',authenticatePlatform,async(req,res)=>{
+    const input=z.object({
+      code:z.string().trim().min(1).max(64).optional(),
+      name:z.string().trim().min(1).max(120),
+      description:z.string().trim().max(500).optional(),
+      amountMinor:z.number().int().min(0).or(z.string().transform(value=>Number(value))).default(0),
+      maxStudents:z.number().int().min(0).or(z.string().transform(value=>Number(value))).default(0),
+      interval:z.string().trim().max(32).optional(),
+      currency:z.string().trim().length(3).optional(),
+      active:z.boolean().optional(),
+      features:z.array(z.string().trim().min(1).max(160)).default([])
+    }).parse(req.body);
+    const planCode=(input.code||input.name).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||`plan-${Date.now()}`;
+    const plan=await db.subscriptionPlan.create({data:{
+      code:planCode,
+      name:input.name,
+      description:input.description || input.name,
+      amountMinor:Number(input.amountMinor),
+      maxStudents:Number(input.maxStudents),
+      interval:input.interval || 'monthly',
+      currency:(input.currency || 'NGN').toUpperCase(),
+      active:input.active !== false,
+      features:input.features
+    }});
+    res.status(201).json({...plan,features:Array.isArray(plan.features)?plan.features:[]});
+  });
+  r.put('/plans/:id',authenticatePlatform,async(req,res)=>{
+    const input=z.object({
+      code:z.string().trim().min(1).max(64).optional(),
+      name:z.string().trim().min(1).max(120).optional(),
+      description:z.string().trim().max(500).optional(),
+      amountMinor:z.number().int().min(0).or(z.string().transform(value=>Number(value))).optional(),
+      maxStudents:z.number().int().min(0).or(z.string().transform(value=>Number(value))).optional(),
+      interval:z.string().trim().max(32).optional(),
+      currency:z.string().trim().length(3).optional(),
+      active:z.boolean().optional(),
+      features:z.array(z.string().trim().min(1).max(160)).optional()
+    }).parse(req.body);
+    const data={};
+    if(input.code!==undefined)data.code=input.code.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+    if(input.name!==undefined)data.name=input.name;
+    if(input.description!==undefined)data.description=input.description;
+    if(input.amountMinor!==undefined)data.amountMinor=Number(input.amountMinor);
+    if(input.maxStudents!==undefined)data.maxStudents=Number(input.maxStudents);
+    if(input.interval!==undefined)data.interval=input.interval;
+    if(input.currency!==undefined)data.currency=input.currency.toUpperCase();
+    if(input.active!==undefined)data.active=input.active;
+    if(input.features!==undefined)data.features=input.features;
+    const plan=await db.subscriptionPlan.update({where:{id:req.params.id},data});
+    res.json({...plan,features:Array.isArray(plan.features)?plan.features:[]});
+  });
   r.get('/dashboard',authenticatePlatform,async(_req,res)=>{
     const [organizations,activeTrials,activeSubscriptions,totalUsers]=await Promise.all([
       db.organization.findMany({include:{subscriptions:{include:{plan:true},orderBy:{createdAt:'desc'},take:1},_count:{select:{users:true}}},orderBy:{createdAt:'desc'},take:250}),
