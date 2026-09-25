@@ -108,14 +108,14 @@ export function authRoutes(app) {
       if (req.cookies.school_session) await tx.session.deleteMany({ where: { id: hash(req.cookies.school_session) } });
       await tx.session.create({ data: { id: hash(token), userId: user.id, csrf, expiresAt } });
       await tx.user.update({where:{id:user.id},data:{lastLoginAt:new Date()}});
-      await tx.auditLog.create({data:{actorId:user.id,action:'auth.login',entityId:user.id}});
+      await tx.auditLog.create({data:{actorId:user.id,action:'auth.login',entityId:user.id,organizationId:user.organizationId}});
     });
     await cache.del(key);
     res.cookie('school_session', token, { ...cookieOptions, expires: expiresAt }).json({ user: publicUser(user), csrf });
   });
   app.get('/api/auth/me', authenticate, (req, res) => res.json({ user: publicUser(req.user), csrf: req.session.csrf }));
   app.post('/api/auth/logout', authenticate, async (req, res) => {
-    await db.$transaction([db.session.delete({ where: { id: req.session.id } }),db.auditLog.create({data:{actorId:req.user.id,action:'auth.logout',entityId:req.user.id}})]);
+    await db.$transaction([db.session.delete({ where: { id: req.session.id } }),db.auditLog.create({data:{actorId:req.user.id,action:'auth.logout',entityId:req.user.id,organizationId:req.user.organizationId}})]);
     res.clearCookie('school_session', cookieOptions).json({ ok: true });
   });
 }

@@ -88,6 +88,7 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
     [plans, setPlans] = useState(fallbackPlans),
     [selected, setSelected] = useState("growth"),
     [busy, setBusy] = useState(false),
+    [contactOpen, setContactOpen] = useState(false),
     [error, setError] = useState("");
   useEffect(() => {
     api("/auth/plans")
@@ -150,6 +151,21 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
     } finally {
       setBusy(false);
     }
+  }
+  function sendContactRequest(event) {
+    event.preventDefault();
+    const details = Object.fromEntries(new FormData(event.currentTarget));
+    const subject = `Schoolhouse enquiry: ${details.purpose}`;
+    const body = [
+      `School name: ${details.schoolName}`,
+      `Phone number: ${details.phone}`,
+      `Email address: ${details.email}`,
+      `Purpose: ${details.purpose}`,
+      "",
+      details.body,
+    ].join("\n");
+    location.href = `mailto:admin@techinvasion.com.ng?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    setContactOpen(false);
   }
   if (view !== "home")
     return (
@@ -371,9 +387,6 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
       </nav>
       <section className="hero-new">
         <div className="hero-copy">
-          <span className="eyebrow">
-            THE OPERATING SYSTEM FOR AMBITIOUS SCHOOLS
-          </span>
           <h1>
             A calmer way to run your <em>whole school.</em>
           </h1>
@@ -531,9 +544,9 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
             <h3>Want a complete online solution with no monthly or yearly fee?</h3>
             <p>Choose a one-time payment package tailored to your school. Contact us for more information.</p>
           </div>
-          <a className="outline" href="mailto:admin@techinvasion.com.ng?subject=Schoolhouse%20one-time%20payment%20solution">
+          <button className="outline" type="button" onClick={() => setContactOpen(true)}>
             Contact us
-          </a>
+          </button>
         </aside>
       </section>
       <section className="other-services">
@@ -544,9 +557,9 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
             Give parents and prospective students a polished place to discover
             your school, explore admissions, read updates and get in touch.
           </p>
-          <a className="primary" href="mailto:admin@techinvasion.com.ng?subject=Website%20for%20my%20school">
+          <button className="primary" type="button" onClick={() => setContactOpen(true)}>
             Let&apos;s build your school website
-          </a>
+          </button>
         </div>
         <div className="website-preview" aria-hidden="true">
           <div className="preview-bar"><i/><i/><i/></div>
@@ -569,6 +582,24 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
           Create your workspace →
         </button>
       </section>
+      {contactOpen && (
+        <div className="contact-modal" role="dialog" aria-modal="true" aria-labelledby="contact-title" onMouseDown={(event) => event.target === event.currentTarget && setContactOpen(false)}>
+          <form className="contact-form" onSubmit={sendContactRequest}>
+            <button className="contact-close" type="button" aria-label="Close contact form" onClick={() => setContactOpen(false)}>×</button>
+            <span className="eyebrow">CONTACT SCHOOLHOUSE</span>
+            <h2 id="contact-title">How can we help your school?</h2>
+            <p>Tell us what you need and your preferred contact details.</p>
+            <label>School name<input name="schoolName" required maxLength="150" autoFocus /></label>
+            <div className="contact-fields">
+              <label>Phone number<input name="phone" type="tel" required maxLength="30" /></label>
+              <label>Email address<input name="email" type="email" required maxLength="254" /></label>
+            </div>
+            <label>Purpose<select name="purpose" required defaultValue="Offline solution"><option>Offline solution</option><option>School website</option><option>Log complaint</option><option>General enquiry</option></select></label>
+            <label>Message<textarea name="body" rows="5" required maxLength="2000" placeholder="Tell us about your school and what you need." /></label>
+            <button className="primary wide" type="submit">Send enquiry</button>
+          </form>
+        </div>
+      )}
       <footer>
         <Mark />
         <span>© {new Date().getFullYear()} Schoolhouse Cloud</span>
