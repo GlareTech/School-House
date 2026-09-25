@@ -6,7 +6,6 @@ import { Student } from './Student';
 import {BrandImage} from './BrandImage';
 import {PublicSite} from './PublicSite';
 import {PlatformAdmin} from './PlatformAdmin';
-import './firebase';
 import './style.css';
 import './extras.css';
 import './progress-report.css';
