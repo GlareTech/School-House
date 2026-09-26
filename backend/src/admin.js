@@ -50,7 +50,8 @@ export function adminRouter() {
   r.get('/classes', async (req, res) => {const scope=await scopeFor(req);res.json(await db.class.findMany({where:scope?{id:{in:scope.classIds}}:{}, include: { classTeacher:{select:{id:true,name:true,email:true}},staff:{select:{staff:{select:{id:true,name:true,email:true}}}},_count: { select: { students: true, exams: true } } }, orderBy: { name: 'asc' } }));});
   r.post('/classes', async (req, res) => {
     if(req.user.role!=='ADMIN')throw new HttpError(403,'Only administrators can create classes');
-    const data = z.object({ name: z.string().trim().min(1).max(100),classTeacherId:id.nullable().optional() }).strict().parse(req.body);
+    const input = z.object({ name: z.string().trim().min(1).max(100).optional(),levelName:z.string().trim().min(1).max(80).optional(),groupName:z.string().trim().max(30).optional(),classTeacherId:id.nullable().optional() }).strict().parse(req.body);
+    const levelName=input.levelName||input.name,groupName=input.groupName||'',data={...input,levelName,groupName,name:groupName?`${levelName} ${groupName}`:levelName};
     if('classTeacherId' in data&&req.user.role!=='ADMIN')throw new HttpError(403,'Only administrators can assign class teachers');
     if(data.classTeacherId&&!await db.user.findFirst({where:{id:data.classTeacherId,role:'STAFF',active:true}}))throw new HttpError(400,'Choose an active staff member');
     res.status(201).json(await db.$transaction(async tx => { const c = await tx.class.create({ data }); if(data.classTeacherId)await tx.staffClass.upsert({where:{staffId_classId:{staffId:data.classTeacherId,classId:c.id}},create:{staffId:data.classTeacherId,classId:c.id},update:{}}); await audit(tx, req.user.id, 'class.create', c.id); return c; }));

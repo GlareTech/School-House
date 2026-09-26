@@ -13,7 +13,7 @@ import './saas.css';
 function App() {
   if(location.pathname.startsWith('/platform'))return <PlatformAdmin/>;
   const [user, setUser] = useState(null), [settings, setSettings] = useState({schoolName:'Schoolhouse',tagline:'Your school. Connected.',autosaveSeconds:5,kioskFullscreen:true}), [loading, setLoading] = useState(true), [error, setError] = useState(''), [busy, setBusy] = useState(false);
-  useEffect(() => { Promise.allSettled([api('/config/public'),api('/auth/me')]).then(([c,u]) => { if(c.status==='fulfilled'){setSettings(c.value);document.documentElement.style.setProperty('--primary',c.value.primaryColor);document.documentElement.style.setProperty('--accent',c.value.accentColor);document.title=c.value.schoolName;} if(u.status==='fulfilled'){setUser(u.value.user);setCsrf(u.value.csrf);} }).finally(() => setLoading(false)); }, []);
+  useEffect(() => { Promise.allSettled([api('/config/public'),api('/auth/me')]).then(([c,u]) => { if(c.status==='fulfilled'){setSettings(c.value);document.documentElement.style.setProperty('--primary',c.value.primaryColor);document.documentElement.style.setProperty('--accent',c.value.accentColor);} if(u.status==='fulfilled'){setUser(u.value.user);setCsrf(u.value.csrf);} }).finally(() => setLoading(false)); }, []);
   async function login(e) {
     e.preventDefault(); setBusy(true); setError('');
     const values = Object.fromEntries(new FormData(e.currentTarget));

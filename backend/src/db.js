@@ -31,7 +31,7 @@ async function createDatabaseClient() {
     }, { schema: databaseUrl.searchParams.get('schema') || 'public' });
     client = new PrismaClient({ adapter });
   }
-  const tenantModels = new Set(['User','StaffRole','AppSetting','Class','Exam','Attendance','Payment','SyncLog','AuditLog','CommunicationCampaign','AcademicSession','Subject','StoredFile','Hostel']);
+  const tenantModels = new Set(['User','StaffRole','AppSetting','Class','Exam','Attendance','StaffAttendance','TimetableEntry','Payment','SyncLog','AuditLog','CommunicationCampaign','AcademicSession','Subject','StoredFile','Hostel']);
   return client.$extends({ query: { $allModels: { async $allOperations({ model, operation, args, query }) {
     const organizationId = currentTenantId();
     if (!organizationId || !tenantModels.has(model)) return query(args);

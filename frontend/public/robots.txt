@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /platform
+Disallow: /api/
+
+Sitemap: https://schoolhouse.techinvasion.com.ng/sitemap.xml

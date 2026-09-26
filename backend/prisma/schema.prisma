@@ -169,6 +169,8 @@ model User {
   hostelAllocationsMade     HostelAllocation[]       @relation("HostelAllocator")
   communicationCampaigns    CommunicationCampaign[]  @relation("CommunicationSender")
   communicationRecipients   CommunicationRecipient[] @relation("CommunicationStudent")
+  staffAttendance           StaffAttendance[]         @relation("StaffAttendanceUser")
+  timetableEntries          TimetableEntry[]           @relation("TimetableTeacher")
   createdAt                 DateTime                 @default(now())
   organizationId            String
   organization              Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -254,6 +256,8 @@ model SignupIntent {
 model Class {
   id                     String                  @id @default(cuid())
   name                   String
+  levelName              String                  @default("")
+  groupName              String                  @default("")
   students               User[]
   exams                  Exam[]
   classSubjects          ClassSubject[]
@@ -265,6 +269,7 @@ model Class {
   promotionSources       PromotionRule[]         @relation("PromotionSource")
   promotionTargets       PromotionRule[]         @relation("PromotionTarget")
   communicationCampaigns CommunicationCampaign[]
+  timetableEntries       TimetableEntry[]
   createdAt              DateTime                @default(now())
 
   organizationId         String
@@ -564,11 +569,13 @@ model StudentRating {
 model Subject {
   id               String            @id @default(cuid())
   code             String
+  codes            Json              @default("[]")
   name             String
   core             Boolean           @default(false)
   classSubjects    ClassSubject[]
   exams            Exam[]
   libraryMaterials LibraryMaterial[]
+  timetableEntries TimetableEntry[]
   organizationId   String
 
   @@unique([organizationId, code])
@@ -771,8 +778,44 @@ model PromotionRule {
   minimumAverage     Int
   coreSubjectMinimum Int
   maximumFailedCore  Int             @default(0)
+  evaluationMode     String          @default("OVERALL")
+  subjectMinimums    Json            @default("{}")
+  excludedSubjectIds Json            @default("[]")
 
   @@unique([sessionId, sourceClassId])
+}
+
+model StaffAttendance {
+  id             String   @id @default(cuid())
+  staffId        String
+  staff          User     @relation("StaffAttendanceUser", fields: [staffId], references: [id], onDelete: Cascade)
+  date           DateTime @db.Date
+  status         String   @default("PRESENT")
+  markedAt       DateTime @default(now())
+  note           String   @default("")
+  organizationId String
+
+  @@unique([staffId, date])
+  @@index([organizationId, date])
+}
+
+model TimetableEntry {
+  id             String   @id @default(cuid())
+  classId        String
+  class          Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId      String
+  subject        Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacherId      String
+  teacher        User     @relation("TimetableTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  dayOfWeek      Int
+  startsAt       String
+  endsAt         String
+  room           String   @default("")
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  @@unique([classId, dayOfWeek, startsAt])
+  @@index([organizationId, teacherId, dayOfWeek])
 }
 
 model PromotionRun {
