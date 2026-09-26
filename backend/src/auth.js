@@ -26,6 +26,7 @@ export async function corsForAllowedOrigins(req,res,next) {
 }
 export async function checkOrigin(req, res, next) {
   if (['GET','HEAD','OPTIONS'].includes(req.method)) return next();
+  if(req.path.startsWith('/api/device-sync/')&&/^Bearer\s+[A-Za-z0-9_-]{32,}$/i.test(String(req.headers.authorization||'')))return next();
   if (!await originAllowed(req.headers.origin)) throw new HttpError(403, 'Untrusted origin');
   next();
 }

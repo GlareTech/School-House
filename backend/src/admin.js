@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import {createHash,randomBytes} from 'node:crypto';
 import { z } from 'zod';
 import { db, audit, enqueue } from './db.js';
 import { admin, permit, publicUser, PERMISSIONS } from './auth.js';
 import { HttpError } from './domain.js';
 import { lockRow } from './provider.js';
 import { clearSettingsCache, defaults } from './settings.js';
+import {encryptSecret} from './secrets.js';
 const id = z.string().min(1).max(100);
 const passwordSchema = z.string().min(12).max(72).refine(v => Buffer.byteLength(v, 'utf8') <= 72, 'Password must be at most 72 UTF-8 bytes');
 const questionSchema = z.object({ prompt: z.string().trim().min(1).max(10000), points: z.number().int().min(1).max(100),
@@ -45,7 +47,7 @@ export function adminRouter() {
   const permissionFor = path => path.startsWith('/classes') ? 'CLASSES_MANAGE' : path.startsWith('/students') ? 'STUDENTS_MANAGE' :
     path.startsWith('/staff') ? 'STAFF_MANAGE' : path.startsWith('/exams') ? 'EXAMS_MANAGE' : path.startsWith('/monitor') ? 'EXAMS_MONITOR' :
     path.startsWith('/results') ? 'RESULTS_VIEW' : path.startsWith('/attendance') ? 'ATTENDANCE_MANAGE' : path.startsWith('/payments') ? 'PAYMENTS_MANAGE' :
-    path.startsWith('/sync') ? 'SYNC_VIEW' : path.startsWith('/audit') ? 'AUDIT_VIEW' : 'SETTINGS_MANAGE';
+    path.startsWith('/wallet') ? 'PAYMENTS_MANAGE' : path.startsWith('/sync') ? 'SYNC_VIEW' : path.startsWith('/audit') ? 'AUDIT_VIEW' : 'SETTINGS_MANAGE';
   r.use((req,res,next) => permit(permissionFor(req.path))(req,res,next));
   r.get('/classes', async (req, res) => {const scope=await scopeFor(req);res.json(await db.class.findMany({where:scope?{id:{in:scope.classIds}}:{}, include: { classTeacher:{select:{id:true,name:true,email:true}},staff:{select:{staff:{select:{id:true,name:true,email:true}}}},_count: { select: { students: true, exams: true } } }, orderBy: { name: 'asc' } }));});
   r.post('/classes', async (req, res) => {
@@ -212,6 +214,8 @@ export function adminRouter() {
     res.status(201).json(await db.$transaction(async tx => {
       const student=await tx.user.findFirst({ where: { id: data.studentId, role: 'STUDENT' } });if(!student)throw new HttpError(400,'Invalid student');await assertClassWideScope(req,student.classId,tx);
       const p = await tx.payment.create({ data }); await enqueue(tx, 'payment.recorded', p.id, p);
+      const wallet=await tx.wallet.upsert({where:{organizationId:req.user.organizationId},create:{organizationId:req.user.organizationId,currency:data.currency,balanceMinor:data.amountMinor},update:{balanceMinor:{increment:data.amountMinor}}});
+      await tx.walletTransaction.create({data:{walletId:wallet.id,type:'CREDIT',amountMinor:data.amountMinor,reference:`payment:${p.reference}`,description:data.description,createdById:req.user.id}});
       await audit(tx, req.user.id, 'payment.create', p.id); return p;
     }));
   });
@@ -219,6 +223,13 @@ export function adminRouter() {
     pending: await db.syncLog.count({ where: { syncedAt: null } }),
     recent: await db.syncLog.findMany({ select: { id: true, kind: true, createdAt: true, syncedAt: true, attempts: true, lastError: true, nextAttemptAt: true }, orderBy: { createdAt: 'desc' }, take: 50 })
   }));
+  r.get('/sync/devices',admin,async(req,res)=>res.json(await db.syncDevice.findMany({where:{organizationId:req.user.organizationId},select:{id:true,name:true,siteId:true,active:true,lastSeenAt:true,createdAt:true},orderBy:{createdAt:'desc'}})));
+  r.post('/sync/devices',admin,async(req,res)=>{const input=z.object({name:z.string().trim().min(1).max(100),siteId:z.string().trim().regex(/^[a-zA-Z0-9_-]{2,80}$/)}).parse(req.body),token=randomBytes(32).toString('base64url'),tokenHash=createHash('sha256').update(token).digest('hex');const device=await db.syncDevice.create({data:{organizationId:req.user.organizationId,...input,tokenHash}});await audit(db,req.user.id,'syncDevice.create',device.id);res.status(201).json({device:{id:device.id,name:device.name,siteId:device.siteId,active:device.active},token,endpoint:'/api/device-sync'});});
+  r.delete('/sync/devices/:id',admin,async(req,res)=>{await db.syncDevice.update({where:{id:req.params.id,organizationId:req.user.organizationId},data:{active:false}});await audit(db,req.user.id,'syncDevice.disable',req.params.id);res.json({ok:true});});
+  r.get('/wallet',async(req,res)=>{const wallet=await db.wallet.upsert({where:{organizationId:req.user.organizationId},create:{organizationId:req.user.organizationId,currency:'NGN'},update:{},include:{transactions:{orderBy:{createdAt:'desc'},take:100}}});res.json(wallet);});
+  r.post('/wallet/adjust',admin,async(req,res)=>{const input=z.object({type:z.enum(['CREDIT','DEBIT']),amountMinor:z.number().int().positive().max(2000000000),reference:z.string().trim().min(1).max(100),description:z.string().trim().min(1).max(300)}).parse(req.body);const result=await db.$transaction(async tx=>{const wallet=await tx.wallet.upsert({where:{organizationId:req.user.organizationId},create:{organizationId:req.user.organizationId,currency:'NGN'},update:{}});if(input.type==='DEBIT'&&wallet.balanceMinor<input.amountMinor)throw new HttpError(409,'Wallet balance is insufficient');const updated=await tx.wallet.update({where:{id:wallet.id},data:{balanceMinor:{increment:input.type==='CREDIT'?input.amountMinor:-input.amountMinor}}});await tx.walletTransaction.create({data:{walletId:wallet.id,...input,createdById:req.user.id}});return updated});res.json(result);});
+  r.get('/providers',admin,async(req,res)=>{const row=await db.communicationProviderSetting.findUnique({where:{organizationId:req.user.organizationId}});res.json({emailProvider:row?.emailProvider||'PLATFORM',emailFrom:row?.emailFrom||'',resendConfigured:!!row?.resendApiKeyEncrypted,smsProvider:row?.smsProvider||'DISABLED',twilioFrom:row?.twilioFrom||'',twilioConfigured:!!row?.twilioSidEncrypted&&!!row?.twilioTokenEncrypted});});
+  r.put('/providers',admin,async(req,res)=>{const input=z.object({emailProvider:z.enum(['PLATFORM','RESEND']),emailFrom:z.union([z.literal(''),z.string().email()]),resendApiKey:z.string().trim().max(300).default(''),smsProvider:z.enum(['DISABLED','TWILIO']),twilioAccountSid:z.string().trim().max(100).default(''),twilioAuthToken:z.string().trim().max(300).default(''),twilioFrom:z.string().trim().max(30).default('')}).parse(req.body),existing=await db.communicationProviderSetting.findUnique({where:{organizationId:req.user.organizationId}}),data={emailProvider:input.emailProvider,emailFrom:input.emailFrom,smsProvider:input.smsProvider,twilioFrom:input.twilioFrom,...(input.resendApiKey?{resendApiKeyEncrypted:encryptSecret(input.resendApiKey)}:{}),...(input.twilioAccountSid?{twilioSidEncrypted:encryptSecret(input.twilioAccountSid)}:{}),...(input.twilioAuthToken?{twilioTokenEncrypted:encryptSecret(input.twilioAuthToken)}:{})};if(input.emailProvider==='RESEND'&&!input.resendApiKey&&!existing?.resendApiKeyEncrypted)throw new HttpError(400,'Enter a Resend API key');if(input.smsProvider==='TWILIO'&&((!input.twilioAccountSid&&!existing?.twilioSidEncrypted)||(!input.twilioAuthToken&&!existing?.twilioTokenEncrypted)||!input.twilioFrom))throw new HttpError(400,'Enter Twilio account SID, auth token and sender number');await db.communicationProviderSetting.upsert({where:{organizationId:req.user.organizationId},create:{organizationId:req.user.organizationId,...data},update:data});await audit(db,req.user.id,'providers.update',req.user.organizationId);res.json({ok:true});});
   r.get('/audit', async (req, res) => {
     const query=z.object({page:z.coerce.number().int().min(1).max(100000).default(1),pageSize:z.coerce.number().int().min(10).max(100).default(50),search:z.string().trim().max(100).default('')}).parse(req.query);
     const where=query.search?{OR:[{action:{contains:query.search}},{actorId:{contains:query.search}},{entityId:{contains:query.search}}]}:{};

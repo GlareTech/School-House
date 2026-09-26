@@ -1,0 +1,15 @@
+import {Router} from 'express';
+import {createHash,timingSafeEqual} from 'node:crypto';
+import {z} from 'zod';
+import {db} from './db.js';
+import {HttpError} from './domain.js';
+
+const tokenHash=value=>createHash('sha256').update(value).digest('hex');
+async function authenticateDevice(req,_res,next){const raw=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');if(raw.length<32)throw new HttpError(401,'Device token required');const hash=tokenHash(raw),device=await db.syncDevice.findUnique({where:{tokenHash:hash}});if(!device?.active)throw new HttpError(401,'Device token is invalid');const actual=Buffer.from(hash),expected=Buffer.from(device.tokenHash);if(actual.length!==expected.length||!timingSafeEqual(actual,expected))throw new HttpError(401,'Device token is invalid');req.syncDevice=device;await db.syncDevice.update({where:{id:device.id},data:{lastSeenAt:new Date()}});next();}
+
+export function deviceSyncRouter(){const r=Router();r.use(authenticateDevice);
+  r.get('/checkpoint',async(req,res)=>{const latest=await db.deviceSyncEvent.aggregate({where:{deviceId:req.syncDevice.id},_max:{sequence:true,receivedAt:true}});res.json({siteId:req.syncDevice.siteId,lastSequence:latest._max.sequence||0,lastReceivedAt:latest._max.receivedAt||null,serverTime:new Date().toISOString()});});
+  r.post('/push',async(req,res)=>{const input=z.object({events:z.array(z.object({sequence:z.number().int().positive(),kind:z.enum(['attendance.upsert','payment.recorded','assignment.graded','student.updated','staffAttendance.mark']),entityId:z.string().min(1).max(100),entityVersion:z.number().int().positive(),payload:z.record(z.unknown()),occurredAt:z.string().datetime()})).min(1).max(100)}).parse(req.body),accepted=[],conflicts=[];for(const event of input.events){const latest=await db.deviceSyncEvent.findFirst({where:{deviceId:req.syncDevice.id,kind:event.kind,entityId:event.entityId},orderBy:{entityVersion:'desc'}});if(latest&&latest.entityVersion>event.entityVersion){conflicts.push({sequence:event.sequence,entityId:event.entityId,serverVersion:latest.entityVersion});continue}try{await db.deviceSyncEvent.create({data:{deviceId:req.syncDevice.id,...event,occurredAt:new Date(event.occurredAt)}});accepted.push(event.sequence)}catch(error){if(error.code==='P2002')accepted.push(event.sequence);else throw error}}res.json({acceptedSequences:accepted,conflicts,nextSequence:Math.max(...input.events.map(x=>x.sequence))+1,serverTime:new Date().toISOString()});});
+  r.get('/pull',async(req,res)=>{const query=z.object({cursor:z.string().datetime().optional(),limit:z.coerce.number().int().min(1).max(200).default(100)}).parse(req.query),after=query.cursor?new Date(query.cursor):new Date(0),events=await db.syncLog.findMany({where:{organizationId:req.syncDevice.organizationId,createdAt:{gt:after}},select:{id:true,kind:true,entityId:true,payload:true,createdAt:true},orderBy:{createdAt:'asc'},take:query.limit});res.json({events:events.map(event=>({...event,occurredAt:event.createdAt})),cursor:events.at(-1)?.createdAt?.toISOString()||after.toISOString(),hasMore:events.length===query.limit});});
+  return r;
+}

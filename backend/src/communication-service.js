@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import { randomUUID } from 'node:crypto';
 import { config } from './config.js';
 import { db, logger } from './db.js';
+import {decryptSecret} from './secrets.js';
 
 let mailer;
 export const communicationCapabilities=()=>({
@@ -17,6 +18,8 @@ const cleanError=(error,sensitive='')=>{
 const retryDelay=attempts=>Math.min(3600,Math.max(30,30*2**Math.max(0,attempts-1)))*1000;
 
 async function sendEmail(recipient,campaign){
+  const tenant=await db.communicationProviderSetting.findUnique({where:{organizationId:campaign.organizationId}});
+  if(tenant?.emailProvider==='RESEND'&&tenant.resendApiKeyEncrypted){const response=await fetch('https://api.resend.com/emails',{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),headers:{Authorization:`Bearer ${decryptSecret(tenant.resendApiKeyEncrypted)}`,'Content-Type':'application/json','Idempotency-Key':recipient.id},body:JSON.stringify({from:tenant.emailFrom,to:[recipient.destination],subject:campaign.subject,text:campaign.body})});if(!response.ok)throw new Error(`Email provider returned ${response.status}`);const result=await response.json();return String(result.id||'').slice(0,500)||null;}
   if(config.MAIL_TRANSPORT==='console'){
     logger.info({campaignId:campaign.id,recipientId:recipient.id,channel:'EMAIL'},'Development communication delivered');
     return `console-${recipient.id}`;
@@ -36,8 +39,9 @@ async function sendSms(recipient,campaign){
     logger.info({campaignId:campaign.id,recipientId:recipient.id,channel:'SMS'},'Development communication delivered');
     return `console-${recipient.id}`;
   }
-  let response;
-  if(config.SMS_TRANSPORT==='generic'){
+  let response;const tenant=await db.communicationProviderSetting.findUnique({where:{organizationId:campaign.organizationId}});
+  if(tenant?.smsProvider==='TWILIO'&&tenant.twilioSidEncrypted&&tenant.twilioTokenEncrypted){const sid=decryptSecret(tenant.twilioSidEncrypted),token=decryptSecret(tenant.twilioTokenEncrypted),url=`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`,body=new URLSearchParams({To:recipient.destination,From:tenant.twilioFrom,Body:campaign.body});response=await fetch(url,{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),headers:{'Content-Type':'application/x-www-form-urlencoded','Authorization':`Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`,'Idempotency-Key':recipient.id},body});}
+  else if(config.SMS_TRANSPORT==='generic'){
     response=await fetch(config.SMS_API_URL,{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),headers:{
       'Content-Type':'application/json','Authorization':`Bearer ${config.SMS_API_TOKEN}`,'Idempotency-Key':recipient.id
     },body:JSON.stringify({to:recipient.destination,message:campaign.body,sender:config.SMS_SENDER_ID,reference:recipient.id})});
@@ -76,7 +80,7 @@ export async function deliverCommunicationBatch(){
   for(const recipient of claimed){
     touchedCampaigns.add(recipient.campaignId);
     try{
-      const capabilities=communicationCapabilities(),capability=recipient.channel==='EMAIL'?capabilities.email:capabilities.sms;
+      const capabilities=communicationCapabilities(),tenant=await db.communicationProviderSetting.findUnique({where:{organizationId:recipient.campaign.organizationId}}),capability=recipient.channel==='EMAIL'?{...capabilities.email,configured:capabilities.email.configured||(tenant?.emailProvider==='RESEND'&&!!tenant.resendApiKeyEncrypted)}:{...capabilities.sms,configured:capabilities.sms.configured||(tenant?.smsProvider==='TWILIO'&&!!tenant.twilioTokenEncrypted)};
       if(!capability.enabled||!capability.configured)throw new Error(`${recipient.channel} delivery is disabled or unconfigured`);
       const providerMessageId=recipient.channel==='EMAIL'?await sendEmail(recipient,recipient.campaign):await sendSms(recipient,recipient.campaign);
       await db.communicationRecipient.updateMany({where:{id:recipient.id,leaseToken:token},data:{status:'SENT',sentAt:new Date(),providerMessageId,leaseToken:null,leaseUntil:null,lastError:null}});sent++;

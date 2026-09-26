@@ -54,6 +54,7 @@ export const config = z.object({
   ,RESEND_FROM: z.string().trim().default('Schoolhouse <onboarding@resend.dev>')
   ,PLATFORM_ADMIN_EMAIL: z.string().email().default('admin@techinvasion.com.ng')
   ,PLATFORM_ADMIN_PASSWORD: z.string().trim().max(128).refine(value=>!value||value.length>=8,'Platform password must contain at least 8 characters').default('')
+  ,INTEGRATION_ENCRYPTION_KEY: z.string().trim().default('')
 }).parse(rawConfig);
 if (config.FEATURE_CLOUD_SYNC && config.CLOUD_SYNC_URL) {
   const url = new URL(config.CLOUD_SYNC_URL);

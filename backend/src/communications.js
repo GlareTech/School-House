@@ -19,6 +19,7 @@ async function staffClassIds(req){
 }
 const accessWhere=(req,classIds)=>req.user.role==='ADMIN'?{}:{OR:[{senderId:req.user.id},{classId:{in:classIds}}]};
 const mutationWhere=(req,campaignId)=>req.user.role==='ADMIN'?{id:campaignId}:{id:campaignId,senderId:req.user.id};
+async function tenantCapabilities(req){const capabilities=communicationCapabilities(),tenant=await db.communicationProviderSetting.findUnique({where:{organizationId:req.user.organizationId}});return {email:{...capabilities.email,configured:capabilities.email.configured||(tenant?.emailProvider==='RESEND'&&!!tenant.resendApiKeyEncrypted)},sms:{...capabilities.sms,configured:capabilities.sms.configured||(tenant?.smsProvider==='TWILIO'&&!!tenant.twilioTokenEncrypted)}};}
 
 export function communicationRouter(){
   const r=Router();r.use(permit('COMMUNICATIONS_MANAGE'));
@@ -30,7 +31,7 @@ export function communicationRouter(){
       db.communicationRecipient.count({where:{campaign:scope,status:{in:['QUEUED','SENDING']}}}),
       db.communicationRecipient.count({where:{campaign:scope,status:'FAILED'}})
     ]);
-    res.json({capabilities:communicationCapabilities(),classes,counts:{campaigns:total,queued,failed}});
+    res.json({capabilities:await tenantCapabilities(req),classes,counts:{campaigns:total,queued,failed}});
   });
   r.get('/recipients',async(req,res)=>{
     const query=pageSchema.extend({search:z.string().trim().max(100).default(''),classId:id.optional()}).parse(req.query),classIds=await staffClassIds(req);
@@ -58,7 +59,7 @@ export function communicationRouter(){
   });
   r.post('/campaigns',async(req,res)=>{
     const schema=z.object({audienceType:z.enum(['ALL','CLASS','INDIVIDUAL']),classId:id.nullable().default(null),studentIds:z.array(id).max(500).default([]),recipientType:z.enum(['STUDENT','GUARDIAN','BOTH']),channels:z.array(z.enum(['EMAIL','SMS'])).min(1).max(2),subject:z.string().trim().max(200).refine(value=>!/[\r\n]/.test(value),'Subject must be one line').default(''),body:z.string().trim().min(1).max(20000)}).strict().superRefine((value,ctx)=>{if(value.channels.includes('EMAIL')&&!value.subject)ctx.addIssue({code:'custom',path:['subject'],message:'Email subject is required'});if(value.channels.includes('SMS')&&value.body.length>1000)ctx.addIssue({code:'custom',path:['body'],message:'SMS messages are limited to 1,000 characters'});if(value.audienceType==='CLASS'&&!value.classId)ctx.addIssue({code:'custom',path:['classId'],message:'Choose a class'});if(value.audienceType==='INDIVIDUAL'&&!value.studentIds.length)ctx.addIssue({code:'custom',path:['studentIds'],message:'Choose at least one student'});}).parse(req.body);
-    const capabilities=communicationCapabilities();for(const channel of schema.channels){const capability=channel==='EMAIL'?capabilities.email:capabilities.sms;if(!capability.enabled)throw new HttpError(404,`${channel} is disabled`);if(!capability.configured)throw new HttpError(409,`${channel} provider is not configured`);}
+    const capabilities=await tenantCapabilities(req);for(const channel of schema.channels){const capability=channel==='EMAIL'?capabilities.email:capabilities.sms;if(!capability.enabled)throw new HttpError(404,`${channel} is disabled`);if(!capability.configured)throw new HttpError(409,`${channel} provider is not configured`);}
     const recent=await db.communicationCampaign.count({where:{senderId:req.user.id,createdAt:{gte:new Date(Date.now()-15*60000)}}});if(recent>=10)throw new HttpError(429,'Too many campaigns; wait before sending another');
     const classIds=await staffClassIds(req);if(schema.audienceType==='ALL'&&req.user.role!=='ADMIN')throw new HttpError(403,'Only administrators can message the whole school');if(schema.classId&&classIds&&!classIds.includes(schema.classId))throw new HttpError(403,'This class is not assigned to you');
     const where={role:'STUDENT',active:true,...(schema.audienceType==='CLASS'?{classId:schema.classId}:schema.audienceType==='INDIVIDUAL'?{id:{in:[...new Set(schema.studentIds)]}}:{})};

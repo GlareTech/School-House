@@ -10,6 +10,8 @@ import { getApps, initializeApp } from 'firebase-admin/app';
 import { getDataConnect } from 'firebase-admin/data-connect';
 import { connectorConfig, upsertDeploymentStatus } from '@schoolhouse/dataconnect-admin';
 import { ensurePlatformAdmin } from './platform.js';
+import {syncBatch} from './sync.js';
+import {deliverCommunicationBatch} from './communication-service.js';
 const io = new Server();
 const http = createServer(createApp(io));
 io.attach(http, { maxHttpBufferSize: 10000, cors: { origin: (origin,cb) => originAllowed(origin).then(ok => cb(ok ? null : new Error('Origin rejected'), ok)).catch(() => cb(new Error('Origin rejected'),false)), credentials: true },
@@ -42,12 +44,14 @@ io.on('connection', socket => {
   socket.on('disconnect', () => clearInterval(revalidate));
 });
 let sweepBusy = false;
+let workerBusy=false;
 let dbReady = false;
 const sweep = setInterval(async () => {
   if (sweepBusy || !dbReady) return; sweepBusy = true;
   try { await expireAttempts(io); } catch (err) { logger.error({ err }, 'Deadline sweep failed'); }
   finally { sweepBusy = false; }
 }, 2000);
+const workerSweep=setInterval(async()=>{if(workerBusy||!dbReady)return;workerBusy=true;try{await Promise.all([syncBatch(),deliverCommunicationBatch()])}catch(err){logger.error({err},'Background delivery iteration failed')}finally{workerBusy=false}},config.SYNC_INTERVAL_MS);
 http.listen(config.PORT, '0.0.0.0', () => logger.info({ port: config.PORT }, 'Schoolhouse SaaS API ready'));
 async function initializeServices() {
   try {
@@ -72,7 +76,7 @@ async function initializeServices() {
 initializeServices().catch(err => logger.error({ err }, 'Service initialization failed'));
 let stopping = false;
 for (const signal of ['SIGINT','SIGTERM']) process.on(signal, async () => {
-  if (stopping) return; stopping = true; clearInterval(sweep);
+  if (stopping) return; stopping = true; clearInterval(sweep);clearInterval(workerSweep);
   const force = setTimeout(() => process.exit(1), 15000); force.unref();
   io.close(); http.close(async () => { await db.$disconnect().catch(() => {}); process.exit(0); });
 });

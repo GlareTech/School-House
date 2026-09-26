@@ -18,6 +18,7 @@ import { communicationRouter } from './communications.js';
 import { adminFeatureGate, academicFeatureGate, requireFeature } from './features.js';
 import { platformRouter } from './platform.js';
 import { paystackWebhook } from './billing.js';
+import { deviceSyncRouter } from './device-sync.js';
 export function createApp(io) {
   const app = express();
   app.disable('x-powered-by'); app.set('trust proxy', config.TRUST_PROXY);
@@ -36,6 +37,7 @@ export function createApp(io) {
   app.use(cookieParser(), checkOrigin);
   app.use('/api/files', authenticate, express.raw({type:['application/pdf','image/png','image/jpeg','text/plain'],limit:'10mb'}));
   app.use(express.json({ limit: '2mb' }));
+  app.use('/api/device-sync',deviceSyncRouter());
   authRoutes(app);
   app.use('/api/platform', platformRouter());
   app.get('/api/config/public', async (req,res) => res.json(publicSettings(await getSettings())));

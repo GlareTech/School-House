@@ -99,7 +99,10 @@ function createLazyClientProxy() {
 export const db = configureClient(createLazyClientProxy());
 export const cache = new MemoryCache();
 logger.info('Local single-process cache enabled; rate limits reset on restart');
-export const audit = (tx, actorId, action, entityId) => tx.auditLog.create({ data: { actorId, action, entityId } });
+export const audit = (tx, actorId, action, entityId) => tx.auditLog.create({ data: {
+  organizationId: currentTenantId(), actorId, action, entityId
+} });
 export const enqueue = (tx, kind, entityId, payload) => tx.syncLog.create({ data: {
-  siteId: config.SITE_ID, kind, entityId, payload: JSON.parse(JSON.stringify(payload))
+  organizationId: currentTenantId(), siteId: config.SITE_ID, kind, entityId,
+  payload: JSON.parse(JSON.stringify(payload))
 } });

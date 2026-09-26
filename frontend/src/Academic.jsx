@@ -99,7 +99,7 @@ export function AcademicModule({ page, classes, students, user, busy, run }) {
                     {new Date(s.endsAt).toLocaleDateString()}
                   </small>
                 </div>
-                <span>{s.terms.map((t) => t.name).join(", ")}</span>
+                <div className="row-actions"><span>{s.terms.map((t) => t.name).join(", ")}</span>{user?.role==="ADMIN"&&<><button className="text-button" onClick={()=>setDialog({type:"sessionEdit",session:s})}>Edit</button><button className="text-button danger" onClick={()=>confirm(`Delete ${s.name}?`)&&run(async()=>{await api('/academics/sessions/'+s.id,{method:'DELETE'});await load()},'Session deleted')}>Delete</button></>}</div>
               </div>
             ))}
         </section>
@@ -122,6 +122,7 @@ export function AcademicModule({ page, classes, students, user, busy, run }) {
                   teachers={catalog.teachers}
                   run={run}
                   reload={load}
+                  canDelete={user?.role === "ADMIN"}
                 />
               ))}
           </div>
@@ -149,14 +150,7 @@ export function AcademicModule({ page, classes, students, user, busy, run }) {
                     {s.core ? " · Compulsory" : ""}
                   </span>
                   {user?.role === "ADMIN" && (
-                    <button
-                      className="text-button"
-                      onClick={() =>
-                        setDialog({ type: "subjectEdit", subject: s })
-                      }
-                    >
-                      Edit
-                    </button>
+                    <><button className="text-button" onClick={() => setDialog({ type: "subjectEdit", subject: s })}>Edit</button><button className="text-button danger" onClick={()=>confirm(`Delete ${s.name}?`)&&run(async()=>{await api('/academics/subjects/'+s.id,{method:'DELETE'});await load()},'Subject deleted')}>Delete</button></>
                   )}
                 </article>
               ))}
@@ -180,6 +174,9 @@ export function AcademicModule({ page, classes, students, user, busy, run }) {
               await load();
             }}
           />
+        </Modal>
+        <Modal title="Edit academic session" open={dialog?.type==="sessionEdit"} onClose={()=>setDialog(null)}>
+          <form className="form-grid" onSubmit={e=>submit(e,d=>api('/academics/sessions/'+dialog.session.id,{method:'PATCH',body:{name:d.get('name'),startsAt:iso(d.get('startsAt')),endsAt:iso(d.get('endsAt'))}}),'Session updated')}><Field label="Session name"><input name="name" defaultValue={dialog?.session?.name} required/></Field><Field label="Starts"><input name="startsAt" type="date" defaultValue={dialog?.session?.startsAt?.slice(0,10)} required/></Field><Field label="Ends"><input name="endsAt" type="date" defaultValue={dialog?.session?.endsAt?.slice(0,10)} required/></Field><Actions close={()=>setDialog(null)} busy={busy} save="Save session"/></form>
         </Modal>
         <Modal
           title="Add subject"
@@ -1454,7 +1451,7 @@ function SessionSelect({ sessions }) {
     </Field>
   );
 }
-function CourseCard({ course, teachers, run, reload }) {
+function CourseCard({ course, teachers, run, reload, canDelete }) {
   const [dialog, setDialog] = useState(null);
   return (
     <article className="panel course-card">
@@ -1477,6 +1474,7 @@ function CourseCard({ course, teachers, run, reload }) {
         <button className="text-button" onClick={() => setDialog("rubric")}>
           Edit rubric
         </button>
+        {canDelete&&<button className="text-button danger" onClick={()=>confirm(`Remove ${course.subject.name} from ${course.class.name}?`)&&run(async()=>{await api('/academics/courses/'+course.id,{method:'DELETE'});await reload()},'Course removed')}>Delete</button>}
       </div>
       <Modal
         title={"Assign teacher · " + course.subject.name}
