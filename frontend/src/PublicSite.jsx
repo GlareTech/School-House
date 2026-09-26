@@ -398,7 +398,7 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
             <button className="primary" onClick={() => navigate("signup")}>
               Start your 7-day trial <span>→</span>
             </button>
-            <a href="#features">Explore the platform</a>
+            <a href="#features">Check out our features</a>
           </div>
           <div className="hero-proof">
             <span>
@@ -541,10 +541,19 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
         <aside className="lifetime-offer">
           <div>
             <span className="eyebrow">A DIFFERENT WAY TO OWN IT</span>
-            <h3>Want a complete online solution with no monthly or yearly fee?</h3>
-            <p>Choose a one-time payment package tailored to your school. Contact us for more information.</p>
+            <h3>
+              Want a complete online solution with no monthly or yearly fee?
+            </h3>
+            <p>
+              Choose a one-time payment package tailored to your school. Contact
+              us for more information.
+            </p>
           </div>
-          <button className="outline" type="button" onClick={() => setContactOpen(true)}>
+          <button
+            className="outline"
+            type="button"
+            onClick={() => setContactOpen(true)}
+          >
             Contact us
           </button>
         </aside>
@@ -557,18 +566,30 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
             Give parents and prospective students a polished place to discover
             your school, explore admissions, read updates and get in touch.
           </p>
-          <button className="primary" type="button" onClick={() => setContactOpen(true)}>
+          <button
+            className="primary"
+            type="button"
+            onClick={() => setContactOpen(true)}
+          >
             Let&apos;s build your school website
           </button>
         </div>
         <div className="website-preview" aria-hidden="true">
-          <div className="preview-bar"><i/><i/><i/></div>
+          <div className="preview-bar">
+            <i />
+            <i />
+            <i />
+          </div>
           <div className="preview-hero">
             <span>WELCOME TO</span>
             <strong>Your School</strong>
             <small>Learning today. Leading tomorrow.</small>
           </div>
-          <div className="preview-cards"><i/><i/><i/></div>
+          <div className="preview-cards">
+            <i />
+            <i />
+            <i />
+          </div>
         </div>
       </section>
       <section className="final-cta">
@@ -583,20 +604,63 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
         </button>
       </section>
       {contactOpen && (
-        <div className="contact-modal" role="dialog" aria-modal="true" aria-labelledby="contact-title" onMouseDown={(event) => event.target === event.currentTarget && setContactOpen(false)}>
+        <div
+          className="contact-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="contact-title"
+          onMouseDown={(event) =>
+            event.target === event.currentTarget && setContactOpen(false)
+          }
+        >
           <form className="contact-form" onSubmit={sendContactRequest}>
-            <button className="contact-close" type="button" aria-label="Close contact form" onClick={() => setContactOpen(false)}>×</button>
+            <button
+              className="contact-close"
+              type="button"
+              aria-label="Close contact form"
+              onClick={() => setContactOpen(false)}
+            >
+              ×
+            </button>
             <span className="eyebrow">CONTACT SCHOOLHOUSE</span>
             <h2 id="contact-title">How can we help your school?</h2>
             <p>Tell us what you need and your preferred contact details.</p>
-            <label>School name<input name="schoolName" required maxLength="150" autoFocus /></label>
+            <label>
+              School name
+              <input name="schoolName" required maxLength="150" autoFocus />
+            </label>
             <div className="contact-fields">
-              <label>Phone number<input name="phone" type="tel" required maxLength="30" /></label>
-              <label>Email address<input name="email" type="email" required maxLength="254" /></label>
+              <label>
+                Phone number
+                <input name="phone" type="tel" required maxLength="30" />
+              </label>
+              <label>
+                Email address
+                <input name="email" type="email" required maxLength="254" />
+              </label>
             </div>
-            <label>Purpose<select name="purpose" required defaultValue="Offline solution"><option>Offline solution</option><option>School website</option><option>Log complaint</option><option>General enquiry</option></select></label>
-            <label>Message<textarea name="body" rows="5" required maxLength="2000" placeholder="Tell us about your school and what you need." /></label>
-            <button className="primary wide" type="submit">Send enquiry</button>
+            <label>
+              Purpose
+              <select name="purpose" required defaultValue="Offline solution">
+                <option>Offline solution</option>
+                <option>School website</option>
+                <option>Log complaint</option>
+                <option>General enquiry</option>
+              </select>
+            </label>
+            <label>
+              Message
+              <textarea
+                name="body"
+                rows="5"
+                required
+                maxLength="2000"
+                placeholder="Tell us about your school and what you need."
+              />
+            </label>
+            <button className="primary wide" type="submit">
+              Send enquiry
+            </button>
           </form>
         </div>
       )}

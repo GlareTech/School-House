@@ -1479,3 +1479,4 @@
     animation: none !important;
   }
 }
+.platform-account-actions{display:flex;gap:.45rem;align-items:center;min-width:330px}.platform-account-actions select{min-width:130px}.platform-account-actions button{padding:.55rem .7rem;white-space:nowrap}

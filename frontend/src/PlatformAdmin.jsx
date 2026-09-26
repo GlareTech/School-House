@@ -40,6 +40,9 @@ const moduleCatalog = [
   "Hostel and facilities",
   "Reports and analytics",
   "Student profiles",
+  "Provider settings",
+  "Progress Report",
+  "CBT Tests",
 ];
 const packageDefaults = [
   {
@@ -209,6 +212,15 @@ export function PlatformAdmin() {
     };
     setPlans((current) => [...current, base]);
   }
+  async function manageOrganization(id, body) {
+    await api(`/platform/organizations/${id}`, { method: "PATCH", body });
+    setData(await api("/platform/dashboard"));
+  }
+  async function deleteOrganization(organization) {
+    if (!confirm(`Permanently delete ${organization.name}? This cannot be undone.`)) return;
+    await api(`/platform/organizations/${organization.id}`, { method: "DELETE" });
+    setData(await api("/platform/dashboard"));
+  }
   if (loading)
     return (
       <div className="platform-loading">
@@ -288,6 +300,7 @@ export function PlatformAdmin() {
                     <th>Users</th>
                     <th>Trial / renewal</th>
                     <th>Joined</th>
+                    <th>Account controls</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -314,6 +327,14 @@ export function PlatformAdmin() {
                         ).toLocaleDateString()}
                       </td>
                       <td>{new Date(o.createdAt).toLocaleDateString()}</td>
+                      <td className="platform-account-actions">
+                        <select aria-label={`Subscription plan for ${o.name}`} value={o.subscription?.planId || ""} onChange={(event)=>manageOrganization(o.id,{planId:event.target.value}).catch(x=>setError(x.message))}>
+                          <option value="" disabled>Choose plan</option>
+                          {plans.filter(plan=>plan.id&&plan.active!==false).map(plan=><option key={plan.id} value={plan.id}>{plan.name}</option>)}
+                        </select>
+                        <button className="secondary" onClick={()=>manageOrganization(o.id,{active:!o.active}).catch(x=>setError(x.message))}>{o.active?"Ban":"Restore"}</button>
+                        <button className="danger" onClick={()=>deleteOrganization(o).catch(x=>setError(x.message))}>Delete</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -788,10 +809,37 @@ export function PlatformAdmin() {
     "Live commercial and tenant activity across Schoolhouse.";
   return (
     <main className="platform">
-      <header className="platform-mobile-bar"><button className="hamburger" type="button" aria-label="Open platform navigation" aria-expanded={drawerOpen} onClick={()=>setDrawerOpen(true)}><span/><span/><span/></button><strong>Schoolhouse Platform</strong></header>
-      {drawerOpen&&<button className="platform-drawer-overlay" type="button" aria-label="Close platform navigation" onClick={()=>setDrawerOpen(false)}/>}
-      <aside className={drawerOpen?"platform-drawer-open":""}>
-        <button className="platform-drawer-close" type="button" aria-label="Close platform navigation" onClick={()=>setDrawerOpen(false)}>×</button>
+      <header className="platform-mobile-bar">
+        <button
+          className="hamburger"
+          type="button"
+          aria-label="Open platform navigation"
+          aria-expanded={drawerOpen}
+          onClick={() => setDrawerOpen(true)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+        <strong>Schoolhouse Platform</strong>
+      </header>
+      {drawerOpen && (
+        <button
+          className="platform-drawer-overlay"
+          type="button"
+          aria-label="Close platform navigation"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
+      <aside className={drawerOpen ? "platform-drawer-open" : ""}>
+        <button
+          className="platform-drawer-close"
+          type="button"
+          aria-label="Close platform navigation"
+          onClick={() => setDrawerOpen(false)}
+        >
+          ×
+        </button>
         <div className="platform-logo">S</div>
         <strong>Schoolhouse</strong>
         <span>Platform operations</span>
@@ -800,7 +848,10 @@ export function PlatformAdmin() {
             <button
               key={key}
               type="button"
-              onClick={() => {setPage(key);setDrawerOpen(false)}}
+              onClick={() => {
+                setPage(key);
+                setDrawerOpen(false);
+              }}
               style={{
                 background: page === key ? "#ffffff13" : "transparent",
                 color: "white",

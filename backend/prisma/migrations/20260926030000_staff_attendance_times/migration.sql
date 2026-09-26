@@ -1,0 +1,2 @@
+ALTER TABLE "AppSetting" ADD COLUMN "staffResumptionTime" TEXT NOT NULL DEFAULT '08:00';
+ALTER TABLE "AppSetting" ADD COLUMN "staffLateAfterTime" TEXT NOT NULL DEFAULT '08:15';

@@ -229,6 +229,8 @@ model AppSetting {
   hostelEnabled          Boolean  @default(false)
   principalName          String   @default("")
   principalSignaturePath String   @default("")
+  staffResumptionTime    String   @default("08:00")
+  staffLateAfterTime     String   @default("08:15")
   activeSessionId        String?
   activeTermId           String?
   updatedAt              DateTime @updatedAt
