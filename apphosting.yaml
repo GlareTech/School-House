@@ -36,9 +36,6 @@ env:
   - variable: FIREBASE_DATA_CONNECT_ENABLED
     value: "true"
     availability: [ RUNTIME ]
-  - variable: FEATURE_SETTINGS_FILE
-    value: config/features.json
-    availability: [ BUILD, RUNTIME ]
   - variable: PAYSTACK_TOKEN_AMOUNT
     value: "5000"
     availability: [ RUNTIME ]

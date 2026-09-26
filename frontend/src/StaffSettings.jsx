@@ -565,6 +565,9 @@ const settingsKeys = [
   "contactEmail",
   "contactPhone",
   "gradingScale",
+  "gradingComponents",
+  "sessionLabel",
+  "termLabel",
   "passingMark",
   "syncEnabled",
   "hostelEnabled",
@@ -586,6 +589,9 @@ const settingDefaults = {
   activeSessionId: null,
   activeTermId: null,
   gradingScale: [],
+  gradingComponents: [],
+  sessionLabel: "Session",
+  termLabel: "Term",
   hostelEnabled: false,
 };
 const cleanSettings = (s) =>
@@ -640,27 +646,19 @@ export function SettingsPanel({ section, settings, save, busy }) {
         "timeZone",
         "staffResumptionTime",
         "staffLateAfterTime",
+        "sessionLabel",
+        "termLabel",
       ])
         body[k] = d.get(k);
       body.autosaveSeconds = Number(d.get("autosaveSeconds"));
       body.passingMark = Number(d.get("passingMark"));
       body.kioskFullscreen = d.get("kioskFullscreen") === "on";
       body.syncEnabled = d.get("syncEnabled") === "on";
-      body.hostelEnabled = d.get("hostelEnabled") === "on";
+      body.hostelEnabled = true;
       body.activeSessionId = d.get("activeSessionId") || null;
       body.activeTermId = d.get("activeTermId") || null;
-      body.gradingScale = d
-        .get("gradingScale")
-        .split("\n")
-        .filter(Boolean)
-        .map((line) => {
-          const [grade, min, ...remark] = line.split(",");
-          return {
-            grade: grade.trim(),
-            min: Number(min),
-            remark: remark.join(",").trim(),
-          };
-        });
+      body.gradingScale = JSON.parse(d.get("gradingScale"));
+      body.gradingComponents = JSON.parse(d.get("gradingComponents"));
     }
     await save(body);
     setOpen(false);
@@ -682,15 +680,20 @@ export function SettingsPanel({ section, settings, save, busy }) {
                 (settings.address || "Address not set")
               : (settings.academicYear || "Academic year not set") +
                 " · " +
-                (settings.currentTerm || "Term not set")}
+                (settings.currentTerm ||
+                  `${settings.termLabel || "Term"} not set`) +
+                " · " +
+                (settings.subscriptionPackage || "Custom / legacy")}
           </p>
         </div>
         <button onClick={openSettings}>Edit settings</button>
       </section>
       {section === "Configuration" && (
         <>
-          <FeatureStatus features={settings.features} />
-          <Definitions />
+          <FeatureStatus
+            features={settings.features}
+            packageName={settings.subscriptionPackage}
+          />
         </>
       )}
       {section === "Personalization" && (
@@ -831,6 +834,20 @@ export function SettingsPanel({ section, settings, save, busy }) {
                     defaultValue={settings.currentTerm}
                   />
                 </Field>
+                <Field title="Name used for a school year">
+                  <input
+                    name="sessionLabel"
+                    defaultValue={settings.sessionLabel || "Session"}
+                    required
+                  />
+                </Field>
+                <Field title="Name used for a reporting period">
+                  <input
+                    name="termLabel"
+                    defaultValue={settings.termLabel || "Term"}
+                    required
+                  />
+                </Field>
                 <Field title="Default currency">
                   <input
                     name="defaultCurrency"
@@ -846,10 +863,20 @@ export function SettingsPanel({ section, settings, save, busy }) {
                   <input name="timeZone" defaultValue={settings.timeZone} />
                 </Field>
                 <Field title="Staff resumption time">
-                  <input name="staffResumptionTime" type="time" defaultValue={settings.staffResumptionTime || "08:00"} required />
+                  <input
+                    name="staffResumptionTime"
+                    type="time"
+                    defaultValue={settings.staffResumptionTime || "08:00"}
+                    required
+                  />
                 </Field>
                 <Field title="Mark staff late after">
-                  <input name="staffLateAfterTime" type="time" defaultValue={settings.staffLateAfterTime || "08:15"} required />
+                  <input
+                    name="staffLateAfterTime"
+                    type="time"
+                    defaultValue={settings.staffLateAfterTime || "08:15"}
+                    required
+                  />
                 </Field>
                 <Field title="Autosave seconds">
                   <input
@@ -869,7 +896,7 @@ export function SettingsPanel({ section, settings, save, busy }) {
                     defaultValue={settings.passingMark}
                   />
                 </Field>
-                <Field title="Active academic session">
+                <Field title={`Active ${settings.sessionLabel || "session"}`}>
                   <select
                     name="activeSessionId"
                     defaultValue={settings.activeSessionId || ""}
@@ -882,7 +909,7 @@ export function SettingsPanel({ section, settings, save, busy }) {
                     ))}
                   </select>
                 </Field>
-                <Field title="Active term">
+                <Field title={`Active ${settings.termLabel || "term"}`}>
                   <select
                     name="activeTermId"
                     defaultValue={settings.activeTermId || ""}
@@ -898,14 +925,7 @@ export function SettingsPanel({ section, settings, save, busy }) {
                   </select>
                 </Field>
               </div>
-              <Field title="Grading scale (Grade, minimum, remark — one per line)">
-                <textarea
-                  name="gradingScale"
-                  defaultValue={(settings.gradingScale || [])
-                    .map((g) => `${g.grade},${g.min},${g.remark}`)
-                    .join("\n")}
-                />
-              </Field>
+              <GradingConfiguration settings={settings} />
               <label className="check">
                 <input
                   name="kioskFullscreen"
@@ -921,14 +941,6 @@ export function SettingsPanel({ section, settings, save, busy }) {
                   defaultChecked={settings.syncEnabled}
                 />
                 Enable periodic cloud synchronization
-              </label>
-              <label className="check">
-                <input
-                  name="hostelEnabled"
-                  type="checkbox"
-                  defaultChecked={settings.hostelEnabled}
-                />
-                Enable hostel management module
               </label>
             </>
           )}
@@ -947,7 +959,207 @@ export function SettingsPanel({ section, settings, save, busy }) {
     </>
   );
 }
-function FeatureStatus({ features = {} }) {
+function GradingConfiguration({ settings }) {
+  const componentOptions = {
+    CA1: "CA 1",
+    CA2: "CA 2",
+    EXAM: "Exam",
+    PROJECT: "Project",
+    ASSIGNMENT: "Assignment",
+  };
+  const initialComponents = settings.gradingComponents?.length
+    ? settings.gradingComponents
+    : [
+        { key: "CA1", label: "CA 1", weight: 20 },
+        { key: "CA2", label: "CA 2", weight: 20 },
+        { key: "EXAM", label: "Exam", weight: 60 },
+      ];
+  const initialScale = (settings.gradingScale || []).map((row, index, all) => ({
+    ...row,
+    max:
+      row.max ??
+      (index === 0 ? 100 : Math.max(row.min, (all[index - 1]?.min ?? 101) - 1)),
+    remark: row.remark || row.comment || "",
+  }));
+  const [components, setComponents] = useState(initialComponents),
+    [scale, setScale] = useState(initialScale);
+  const missing = Object.keys(componentOptions).filter(
+    (key) => !components.some((row) => row.key === key),
+  );
+  return (
+    <section className="grading-config-editor">
+      <input
+        type="hidden"
+        name="gradingComponents"
+        value={JSON.stringify(components)}
+      />
+      <input type="hidden" name="gradingScale" value={JSON.stringify(scale)} />
+      <div className="panel-title">
+        <div>
+          <h3>Grading ratio</h3>
+          <p className="muted">The enabled ratios must total 100%.</p>
+        </div>
+        {missing.length > 0 && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              const key = missing[0];
+              setComponents([
+                ...components,
+                { key, label: componentOptions[key], weight: 0 },
+              ]);
+            }}
+          >
+            + Add grading ratio
+          </button>
+        )}
+      </div>
+      <div className="grading-editor-list">
+        {components.map((row, index) => (
+          <div className="grading-editor-row" key={row.key}>
+            <input
+              value={row.label}
+              aria-label={`${row.key} label`}
+              onChange={(e) =>
+                setComponents(
+                  components.map((item, i) =>
+                    i === index ? { ...item, label: e.target.value } : item,
+                  ),
+                )
+              }
+            />
+            <label>
+              Weight %
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={row.weight}
+                onChange={(e) =>
+                  setComponents(
+                    components.map((item, i) =>
+                      i === index
+                        ? { ...item, weight: Number(e.target.value) }
+                        : item,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <button
+              type="button"
+              className="text-button danger"
+              onClick={() =>
+                setComponents(components.filter((_, i) => i !== index))
+              }
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="panel-title">
+        <div>
+          <h3>Grade ranges and comments</h3>
+          <p className="muted">
+            Define each grade, its inclusive score range and report comment.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() =>
+            setScale([...scale, { grade: "", min: 0, max: 100, remark: "" }])
+          }
+        >
+          + Add grade range
+        </button>
+      </div>
+      <div className="grading-editor-list">
+        {scale.map((row, index) => (
+          <div className="grading-editor-row grade-range-row" key={index}>
+            <label>
+              Grade
+              <input
+                value={row.grade}
+                maxLength="5"
+                required
+                onChange={(e) =>
+                  setScale(
+                    scale.map((item, i) =>
+                      i === index ? { ...item, grade: e.target.value } : item,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <label>
+              From
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={row.min}
+                required
+                onChange={(e) =>
+                  setScale(
+                    scale.map((item, i) =>
+                      i === index
+                        ? { ...item, min: Number(e.target.value) }
+                        : item,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <label>
+              To
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={row.max}
+                required
+                onChange={(e) =>
+                  setScale(
+                    scale.map((item, i) =>
+                      i === index
+                        ? { ...item, max: Number(e.target.value) }
+                        : item,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <label>
+              Grading comment
+              <input
+                value={row.remark}
+                maxLength="100"
+                onChange={(e) =>
+                  setScale(
+                    scale.map((item, i) =>
+                      i === index ? { ...item, remark: e.target.value } : item,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <button
+              type="button"
+              className="text-button danger"
+              onClick={() => setScale(scale.filter((_, i) => i !== index))}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+function FeatureStatus({ features = {}, packageName }) {
   const labels = {
     cbt: "CBT tests",
     assignments: "Assignments",
@@ -965,10 +1177,10 @@ function FeatureStatus({ features = {} }) {
     <section className="panel">
       <div className="panel-title">
         <div>
-          <span className="eyebrow">SERVER FEATURE CONTROLS</span>
+          <span className="eyebrow">SUBSCRIPTION PACKAGE</span>
           <h2>Available modules</h2>
         </div>
-        <small>Edit config/features.json, then restart the server</small>
+        <strong>{packageName || "Custom / legacy"}</strong>
       </div>
       <div className="feature-status-grid">
         {Object.entries(labels).map(([key, label]) => (
@@ -980,48 +1192,8 @@ function FeatureStatus({ features = {} }) {
             />
             <strong>{label}</strong>
             <small>
-              {features[key] === false ? "Disabled by server" : "Available"}
+              {features[key] === false ? "Not included in package" : "Included"}
             </small>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-function Definitions() {
-  const items = [
-    [
-      "Academic session",
-      "The full school year, such as 2026/2027. It contains one or more terms.",
-    ],
-    [
-      "Term",
-      "A teaching and reporting period inside a session, such as First Term.",
-    ],
-    ["Class", "A student group or grade level, such as JSS 1A."],
-    ["Subject", "A curriculum area, such as Mathematics or English."],
-    [
-      "Course",
-      "A subject taught to one class. A course links the class, subject, teacher and grading rubric.",
-    ],
-    [
-      "Rubric",
-      "The percentage weights used to combine assessments, assignments and final exams.",
-    ],
-    ["Passing mark", "The default minimum percentage considered a pass."],
-    [
-      "Active session and term",
-      "The periods currently used for new records, reports and day-to-day work.",
-    ],
-  ];
-  return (
-    <section className="panel">
-      <h2>School setup terms</h2>
-      <div className="definition-grid">
-        {items.map(([term, text]) => (
-          <article key={term}>
-            <strong>{term}</strong>
-            <p>{text}</p>
           </article>
         ))}
       </div>

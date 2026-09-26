@@ -1238,6 +1238,7 @@ export function Admin({ user, settings: publicConfig, logout }) {
             user={user}
             busy={busy}
             run={act}
+            settings={publicConfig}
           />
         )}
         {["Personalization", "Configuration"].includes(page) && appSettings && (

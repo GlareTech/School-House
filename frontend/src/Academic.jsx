@@ -19,7 +19,17 @@ const matches = (query, ...values) =>
       .includes(query.toLowerCase()),
   );
 
-export function AcademicModule({ page, classes, students, user, busy, run }) {
+export function AcademicModule({
+  page,
+  classes,
+  students,
+  user,
+  busy,
+  run,
+  settings = {},
+}) {
+  const sessionLabel = settings.sessionLabel || "Session",
+    termLabel = settings.termLabel || "Term";
   const [catalog, setCatalog] = useState({
       sessions: [],
       subjects: [],
@@ -71,9 +81,11 @@ export function AcademicModule({ page, classes, students, user, busy, run }) {
           <Search
             value={query}
             onChange={setQuery}
-            placeholder="Search sessions, subjects or courses"
+            placeholder={`Search ${sessionLabel.toLowerCase()}s, subjects or courses`}
           />
-          <button onClick={() => setDialog("session")}>+ New session</button>
+          <button onClick={() => setDialog("session")}>
+            + New {sessionLabel.toLowerCase()}
+          </button>
           <button className="secondary" onClick={() => setDialog("subject")}>
             + Add subject
           </button>
@@ -83,8 +95,10 @@ export function AcademicModule({ page, classes, students, user, busy, run }) {
         </div>
         <section className="panel">
           <div className="panel-title">
-            <h2>Academic sessions</h2>
-            <span className="muted">{catalog.sessions.length} sessions</span>
+            <h2>Academic {sessionLabel.toLowerCase()}s</h2>
+            <span className="muted">
+              {catalog.sessions.length} {sessionLabel.toLowerCase()}s
+            </span>
           </div>
           {catalog.sessions
             .filter((s) =>
@@ -99,7 +113,35 @@ export function AcademicModule({ page, classes, students, user, busy, run }) {
                     {new Date(s.endsAt).toLocaleDateString()}
                   </small>
                 </div>
-                <div className="row-actions"><span>{s.terms.map((t) => t.name).join(", ")}</span>{user?.role==="ADMIN"&&<><button className="text-button" onClick={()=>setDialog({type:"sessionEdit",session:s})}>Edit</button><button className="text-button danger" onClick={()=>confirm(`Delete ${s.name}?`)&&run(async()=>{await api('/academics/sessions/'+s.id,{method:'DELETE'});await load()},'Session deleted')}>Delete</button></>}</div>
+                <div className="row-actions">
+                  <span>{s.terms.map((t) => t.name).join(", ")}</span>
+                  {user?.role === "ADMIN" && (
+                    <>
+                      <button
+                        className="text-button"
+                        onClick={() =>
+                          setDialog({ type: "sessionEdit", session: s })
+                        }
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-button danger"
+                        onClick={() =>
+                          confirm(`Delete ${s.name}?`) &&
+                          run(async () => {
+                            await api("/academics/sessions/" + s.id, {
+                              method: "DELETE",
+                            });
+                            await load();
+                          }, "Session deleted")
+                        }
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             ))}
         </section>
@@ -150,19 +192,44 @@ export function AcademicModule({ page, classes, students, user, busy, run }) {
                     {s.core ? " · Compulsory" : ""}
                   </span>
                   {user?.role === "ADMIN" && (
-                    <><button className="text-button" onClick={() => setDialog({ type: "subjectEdit", subject: s })}>Edit</button><button className="text-button danger" onClick={()=>confirm(`Delete ${s.name}?`)&&run(async()=>{await api('/academics/subjects/'+s.id,{method:'DELETE'});await load()},'Subject deleted')}>Delete</button></>
+                    <>
+                      <button
+                        className="text-button"
+                        onClick={() =>
+                          setDialog({ type: "subjectEdit", subject: s })
+                        }
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-button danger"
+                        onClick={() =>
+                          confirm(`Delete ${s.name}?`) &&
+                          run(async () => {
+                            await api("/academics/subjects/" + s.id, {
+                              method: "DELETE",
+                            });
+                            await load();
+                          }, "Subject deleted")
+                        }
+                      >
+                        Delete
+                      </button>
+                    </>
                   )}
                 </article>
               ))}
           </div>
         </section>
         <Modal
-          title="Create academic session"
+          title={`Create academic ${sessionLabel.toLowerCase()}`}
           open={dialog === "session"}
           onClose={() => setDialog(null)}
           wide
         >
           <SessionForm
+            sessionLabel={sessionLabel}
+            termLabel={termLabel}
             busy={busy}
             close={() => setDialog(null)}
             save={async (body) => {
@@ -175,8 +242,58 @@ export function AcademicModule({ page, classes, students, user, busy, run }) {
             }}
           />
         </Modal>
-        <Modal title="Edit academic session" open={dialog?.type==="sessionEdit"} onClose={()=>setDialog(null)}>
-          <form className="form-grid" onSubmit={e=>submit(e,d=>api('/academics/sessions/'+dialog.session.id,{method:'PATCH',body:{name:d.get('name'),startsAt:iso(d.get('startsAt')),endsAt:iso(d.get('endsAt'))}}),'Session updated')}><Field label="Session name"><input name="name" defaultValue={dialog?.session?.name} required/></Field><Field label="Starts"><input name="startsAt" type="date" defaultValue={dialog?.session?.startsAt?.slice(0,10)} required/></Field><Field label="Ends"><input name="endsAt" type="date" defaultValue={dialog?.session?.endsAt?.slice(0,10)} required/></Field><Actions close={()=>setDialog(null)} busy={busy} save="Save session"/></form>
+        <Modal
+          title="Edit academic session"
+          open={dialog?.type === "sessionEdit"}
+          onClose={() => setDialog(null)}
+        >
+          <form
+            className="form-grid"
+            onSubmit={(e) =>
+              submit(
+                e,
+                (d) =>
+                  api("/academics/sessions/" + dialog.session.id, {
+                    method: "PATCH",
+                    body: {
+                      name: d.get("name"),
+                      startsAt: iso(d.get("startsAt")),
+                      endsAt: iso(d.get("endsAt")),
+                    },
+                  }),
+                "Session updated",
+              )
+            }
+          >
+            <Field label="Session name">
+              <input
+                name="name"
+                defaultValue={dialog?.session?.name}
+                required
+              />
+            </Field>
+            <Field label="Starts">
+              <input
+                name="startsAt"
+                type="date"
+                defaultValue={dialog?.session?.startsAt?.slice(0, 10)}
+                required
+              />
+            </Field>
+            <Field label="Ends">
+              <input
+                name="endsAt"
+                type="date"
+                defaultValue={dialog?.session?.endsAt?.slice(0, 10)}
+                required
+              />
+            </Field>
+            <Actions
+              close={() => setDialog(null)}
+              busy={busy}
+              save="Save session"
+            />
+          </form>
         </Modal>
         <Modal
           title="Add subject"
@@ -1075,11 +1192,39 @@ export function AcademicModule({ page, classes, students, user, busy, run }) {
             />
           </form>
         </Modal>
-        <Modal title="Run automatic promotion" open={dialog === "automatic"} onClose={() => setDialog(null)}>
-          <form onSubmit={e=>{e.preventDefault();const sessionId=new FormData(e.currentTarget).get('session');run(async()=>{const batch=await api('/academics/promotions/preview',{method:'POST',body:{sessionId}});await api('/academics/promotions/'+batch.id+'/apply',{method:'POST'});setPromotion(batch);setDialog(null)},'End-of-session promotion completed')}}>
-            <SessionSelect sessions={catalog.sessions}/>
-            <p className="muted">This applies the saved hierarchy and promotion conditions immediately. Learners who pass move to the configured next class; others remain in their current class.</p>
-            <Actions close={()=>setDialog(null)} busy={busy} save="Calculate and promote"/>
+        <Modal
+          title="Run automatic promotion"
+          open={dialog === "automatic"}
+          onClose={() => setDialog(null)}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const sessionId = new FormData(e.currentTarget).get("session");
+              run(async () => {
+                const batch = await api("/academics/promotions/preview", {
+                  method: "POST",
+                  body: { sessionId },
+                });
+                await api("/academics/promotions/" + batch.id + "/apply", {
+                  method: "POST",
+                });
+                setPromotion(batch);
+                setDialog(null);
+              }, "End-of-session promotion completed");
+            }}
+          >
+            <SessionSelect sessions={catalog.sessions} />
+            <p className="muted">
+              This applies the saved hierarchy and promotion conditions
+              immediately. Learners who pass move to the configured next class;
+              others remain in their current class.
+            </p>
+            <Actions
+              close={() => setDialog(null)}
+              busy={busy}
+              save="Calculate and promote"
+            />
           </form>
         </Modal>
       </>
@@ -1097,7 +1242,13 @@ function Actions({ close, busy, save }) {
     </div>
   );
 }
-function SessionForm({ busy, close, save }) {
+function SessionForm({
+  busy,
+  close,
+  save,
+  sessionLabel = "Session",
+  termLabel = "Term",
+}) {
   const [terms, setTerms] = useState([
     { name: "First Term", startsAt: "", endsAt: "" },
     { name: "Second Term", startsAt: "", endsAt: "" },
@@ -1127,29 +1278,33 @@ function SessionForm({ busy, close, save }) {
         });
       }}
     >
-      <Field label="Session name">
+      <Field label={`${sessionLabel} name`}>
         <input name="name" placeholder="2026/2027" required />
       </Field>
-      <Field label="Session starts">
+      <Field label={`${sessionLabel} starts`}>
         <input name="startsAt" type="date" required />
       </Field>
-      <Field label="Session ends">
+      <Field label={`${sessionLabel} ends`}>
         <input name="endsAt" type="date" required />
       </Field>
       <div className="term-builder">
         <div className="panel-title">
-          <h3>Terms / semesters</h3>
+          <h3>{termLabel}s</h3>
           <button
             type="button"
             className="secondary"
             onClick={() =>
               setTerms((rows) => [
                 ...rows,
-                { name: `Term ${rows.length + 1}`, startsAt: "", endsAt: "" },
+                {
+                  name: `${termLabel} ${rows.length + 1}`,
+                  startsAt: "",
+                  endsAt: "",
+                },
               ])
             }
           >
-            + Add term
+            + Add {termLabel.toLowerCase()}
           </button>
         </div>
         {terms.map((term, index) => (
@@ -1295,11 +1450,13 @@ function PromotionCriteriaForm({
             </Field>
           </>
         )}
-        {mode === "SUBJECTS" && <>
-          <input type="hidden" name="average" value="0" />
-          <input type="hidden" name="core" value="0" />
-          <input type="hidden" name="failed" value="50" />
-        </>}
+        {mode === "SUBJECTS" && (
+          <>
+            <input type="hidden" name="average" value="0" />
+            <input type="hidden" name="core" value="0" />
+            <input type="hidden" name="failed" value="50" />
+          </>
+        )}
       </div>
       <fieldset className="promotion-subjects">
         <legend>Subjects included in promotion</legend>
@@ -1474,7 +1631,24 @@ function CourseCard({ course, teachers, run, reload, canDelete }) {
         <button className="text-button" onClick={() => setDialog("rubric")}>
           Edit rubric
         </button>
-        {canDelete&&<button className="text-button danger" onClick={()=>confirm(`Remove ${course.subject.name} from ${course.class.name}?`)&&run(async()=>{await api('/academics/courses/'+course.id,{method:'DELETE'});await reload()},'Course removed')}>Delete</button>}
+        {canDelete && (
+          <button
+            className="text-button danger"
+            onClick={() =>
+              confirm(
+                `Remove ${course.subject.name} from ${course.class.name}?`,
+              ) &&
+              run(async () => {
+                await api("/academics/courses/" + course.id, {
+                  method: "DELETE",
+                });
+                await reload();
+              }, "Course removed")
+            }
+          >
+            Delete
+          </button>
+        )}
       </div>
       <Modal
         title={"Assign teacher · " + course.subject.name}

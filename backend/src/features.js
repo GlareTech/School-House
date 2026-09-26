@@ -1,23 +1,21 @@
-import { config } from "./config.js";
 import { HttpError } from "./domain.js";
 
-const values = {
-  cbt: config.FEATURE_CBT,
-  assignments: config.FEATURE_ASSIGNMENTS,
-  library: config.FEATURE_LIBRARY,
-  attendance: config.FEATURE_ATTENDANCE,
-  reports: config.FEATURE_REPORTS,
-  hostel: config.FEATURE_HOSTEL,
-  payments: config.FEATURE_PAYMENTS,
-  cloudSync: config.FEATURE_CLOUD_SYNC,
-  communications: config.FEATURE_COMMUNICATIONS,
-  email: config.FEATURE_COMMUNICATIONS && config.FEATURE_EMAIL,
-  sms: config.FEATURE_COMMUNICATIONS && config.FEATURE_SMS,
-};
-export const featureSnapshot = (settings) => ({
-  ...values,
-  hostel: values.hostel && settings?.hostelEnabled !== false,
-});
+const values = Object.fromEntries(
+  [
+    "cbt",
+    "assignments",
+    "library",
+    "attendance",
+    "reports",
+    "hostel",
+    "payments",
+    "cloudSync",
+    "communications",
+    "email",
+    "sms",
+  ].map((name) => [name, true]),
+);
+export const featureSnapshot = () => ({ ...values });
 const planLabels = {
   cbt: ["CBT Tests", "Examinations"],
   assignments: ["Assignments and grading", "Academic command centre"],

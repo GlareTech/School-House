@@ -1427,18 +1427,16 @@ export function adminRouter() {
       data: { organizationId: req.user.organizationId, ...input, tokenHash },
     });
     await audit(db, req.user.id, "syncDevice.create", device.id);
-    res
-      .status(201)
-      .json({
-        device: {
-          id: device.id,
-          name: device.name,
-          siteId: device.siteId,
-          active: device.active,
-        },
-        token,
-        endpoint: "/api/device-sync",
-      });
+    res.status(201).json({
+      device: {
+        id: device.id,
+        name: device.name,
+        siteId: device.siteId,
+        active: device.active,
+      },
+      token,
+      endpoint: "/api/device-sync",
+    });
   });
   r.delete("/sync/devices/:id", admin, async (req, res) => {
     await db.syncDevice.update({
@@ -1597,22 +1595,42 @@ export function adminRouter() {
       pages: Math.ceil(total / query.pageSize),
     });
   });
-  r.get("/settings", async (req, res) =>
-    res.json(
-      (await db.appSetting.findFirst()) ||
-        (await db.appSetting.create({
-          data: { ...defaults, organizationId: req.user.organizationId },
-        })),
-    ),
-  );
+  r.get("/settings", async (req, res) => {
+    const [settings, subscription] = await Promise.all([
+      db.appSetting
+        .findFirst()
+        .then(
+          (row) =>
+            row ||
+            db.appSetting.create({
+              data: { ...defaults, organizationId: req.user.organizationId },
+            }),
+        ),
+      db.subscription.findFirst({
+        where: { organizationId: req.user.organizationId },
+        include: { plan: { select: { name: true, code: true } } },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+    res.json({
+      ...settings,
+      subscriptionPackage: subscription?.plan?.name || "Custom / legacy",
+      subscriptionCode: subscription?.plan?.code || "legacy",
+    });
+  });
   r.put("/settings", async (req, res) => {
     const scale = z
       .array(
-        z.object({
-          grade: z.string().trim().min(1).max(5),
-          min: z.number().int().min(0).max(100),
-          remark: z.string().trim().max(100),
-        }),
+        z
+          .object({
+            grade: z.string().trim().min(1).max(5),
+            min: z.number().int().min(0).max(100),
+            max: z.number().int().min(0).max(100),
+            remark: z.string().trim().max(100),
+          })
+          .refine((x) => x.max >= x.min, {
+            message: "Maximum score must be at least the minimum",
+          }),
       )
       .min(2)
       .max(20);
@@ -1637,6 +1655,22 @@ export function adminRouter() {
         contactEmail: z.union([z.literal(""), z.string().email().max(254)]),
         contactPhone: z.string().max(50),
         gradingScale: scale,
+        gradingComponents: z
+          .array(
+            z.object({
+              key: z.enum(["CA1", "CA2", "EXAM", "PROJECT", "ASSIGNMENT"]),
+              label: z.string().trim().min(1).max(50),
+              weight: z.number().int().min(0).max(100),
+            }),
+          )
+          .min(1)
+          .max(5)
+          .refine(
+            (rows) => rows.reduce((sum, row) => sum + row.weight, 0) === 100,
+            "Grading ratios must total 100%",
+          ),
+        sessionLabel: z.string().trim().min(1).max(40),
+        termLabel: z.string().trim().min(1).max(40),
         passingMark: z.number().int().min(0).max(100),
         syncEnabled: z.boolean(),
         hostelEnabled: z.boolean(),

@@ -224,6 +224,9 @@ model AppSetting {
   contactEmail           String   @default("")
   contactPhone           String   @default("")
   gradingScale           Json
+  gradingComponents      Json     @default("[]")
+  sessionLabel           String   @default("Session")
+  termLabel              String   @default("Term")
   passingMark            Int      @default(40)
   syncEnabled            Boolean  @default(false)
   hostelEnabled          Boolean  @default(false)

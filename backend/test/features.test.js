@@ -1,25 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-process.env.FEATURE_LIBRARY='false';
-process.env.FEATURE_CBT='false';
-process.env.FEATURE_COMMUNICATIONS='false';
 const {academicFeatureGate,adminFeatureGate,requireFeature}=await import('../src/features.js');
 
-const invoke=(middleware,path)=>new Promise(resolve=>middleware({path},{},error=>resolve(error)));
+const invoke=(middleware,path,features=[])=>new Promise(resolve=>middleware({path,user:{organization:{subscriptions:[{plan:{features}}]}}},{},error=>resolve(error)));
 
-test('disabled academic modules return a non-disclosing 404',async()=>{
+test('subscription excludes academic modules not selected by platform admin',async()=>{
   const error=await invoke(academicFeatureGate,'/library');
-  assert.equal(error?.status,404);
+  assert.equal(error?.status,403);
   assert.equal(await invoke(academicFeatureGate,'/catalog'),undefined);
+  assert.equal(await invoke(academicFeatureGate,'/library',['Library']),undefined);
 });
 
-test('CBT endpoints are disabled while result CSV import remains available',async()=>{
-  assert.equal((await invoke(adminFeatureGate,'/results'))?.status,404);
+test('CBT plan gate preserves result CSV import',async()=>{
+  assert.equal((await invoke(adminFeatureGate,'/results'))?.status,403);
   assert.equal(await invoke(adminFeatureGate,'/results/import'),undefined);
+  assert.equal(await invoke(adminFeatureGate,'/results',['CBT Tests']),undefined);
 });
 
-test('direct module guards use the same environment feature state',async()=>{
-  assert.equal((await invoke(requireFeature('library'),'/'))?.status,404);
-  assert.equal((await invoke(requireFeature('communications'),'/'))?.status,404);
+test('direct module guards use platform plan features',async()=>{
+  assert.equal((await invoke(requireFeature('library'),'/'))?.status,403);
+  assert.equal((await invoke(requireFeature('communications'),'/'))?.status,403);
+  assert.equal(await invoke(requireFeature('communications'),'/', ['Communication hub']),undefined);
 });
