@@ -3,17 +3,13 @@ import { z } from 'zod';
 import { db } from './db.js';
 import { config } from './config.js';
 import { retryDelay } from './domain.js';
-import { isSqlServer } from './provider.js';
 export async function syncBatch() {
   if (!config.FEATURE_CLOUD_SYNC || !config.CLOUD_SYNC_URL) return { disabled: true };
   const settings=await db.appSetting.findFirst({select:{syncEnabled:true}});
   if(settings&&!settings.syncEnabled)return {disabled:true};
   const token = randomUUID();
   const events = await db.$transaction(async tx => {
-    const rows = isSqlServer ? await tx.$queryRaw`SELECT TOP (50) * FROM [SyncLog] WITH (UPDLOCK, READPAST, ROWLOCK)
-      WHERE [syncedAt] IS NULL AND [nextAttemptAt] <= SYSUTCDATETIME()
-      AND ([leaseUntil] IS NULL OR [leaseUntil] < SYSUTCDATETIME()) ORDER BY [createdAt]`
-      : await tx.$queryRaw`SELECT * FROM "SyncLog" WHERE "syncedAt" IS NULL
+    const rows = await tx.$queryRaw`SELECT * FROM "SyncLog" WHERE "syncedAt" IS NULL
       AND "nextAttemptAt" <= now() AND ("leaseUntil" IS NULL OR "leaseUntil" < now())
       ORDER BY "createdAt" LIMIT 50 FOR UPDATE SKIP LOCKED`;
     if (rows.length) await tx.syncLog.updateMany({ where: { id: { in: rows.map(r => r.id) } },
