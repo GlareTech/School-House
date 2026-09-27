@@ -1,0 +1,59 @@
+.photo-picker:has(.camera-live),
+.photo-picker:has(.crop-preview) {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.photo-preview.camera-live {
+  width: min(100%, 540px);
+  height: auto;
+  aspect-ratio: 4/3;
+  background: #14231f;
+}
+.photo-preview.camera-live video {
+  transform: scaleX(-1);
+}
+.photo-preview.crop-preview {
+  width: min(100%, 420px);
+  height: auto;
+  aspect-ratio: 1;
+}
+.photo-preview canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.photo-crop-tools {
+  display: grid;
+  gap: 10px;
+  min-width: min(100%, 300px);
+  flex: 1;
+  padding: 8px 4px;
+}
+.photo-crop-tools p {
+  margin: 0;
+  color: #66766e;
+  font-size: 13px;
+}
+.photo-crop-tools label {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: center;
+}
+.photo-crop-tools input[type="range"] {
+  min-height: auto;
+  padding: 0;
+}
+.camera-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-basis: 100%;
+}
+@media (max-width: 700px) {
+  .photo-crop-tools {
+    width: 100%;
+  }
+  .photo-crop-tools label {
+    grid-template-columns: 1fr;
+  }
+}

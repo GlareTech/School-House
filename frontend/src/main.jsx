@@ -10,6 +10,7 @@ import "./style.css";
 import "./extras.css";
 import "./progress-report.css";
 import "./saas.css";
+import "./webcam.css";
 function App() {
   if (location.pathname.startsWith("/platform")) return <PlatformAdmin />;
   const [user, setUser] = useState(null),
