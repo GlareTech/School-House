@@ -322,6 +322,31 @@ export function platformRouter() {
     await db.organization.delete({ where: { id: organization.id } });
     res.json({ ok: true });
   });
+  r.get("/communication-pricing", authenticatePlatform, async (req, res) => {
+    res.json(
+      await db.platformCommunicationPrice.upsert({
+        where: { id: "platform" },
+        create: { id: "platform" },
+        update: {},
+      }),
+    );
+  });
+  r.put("/communication-pricing", authenticatePlatform, async (req, res) => {
+    const input = z
+      .object({
+        smsPriceMinor: z.number().int().min(0).max(1000000),
+        emailPriceMinor: z.number().int().min(0).max(1000000),
+        currency: z.literal("NGN"),
+      })
+      .parse(req.body);
+    res.json(
+      await db.platformCommunicationPrice.upsert({
+        where: { id: "platform" },
+        create: { id: "platform", ...input },
+        update: input,
+      }),
+    );
+  });
   r.get("/security", authenticatePlatform, async (req, res) => {
     const query = z
         .object({ page: z.coerce.number().int().min(1).max(10000).default(1) })

@@ -20,6 +20,10 @@ const pageMeta = {
     label: "Subscriptions",
     description: "Configure subscription packages, prices and enabled modules.",
   },
+  messaging: {
+    label: "Messaging prices",
+    description: "Set the wallet charge for platform-provided email and SMS.",
+  },
   health: {
     label: "System health",
     description:
@@ -219,6 +223,73 @@ function SecurityCentre() {
         </div>
       </section>
     </div>
+  );
+}
+function MessagingPricing() {
+  const [pricing, setPricing] = useState(null),
+    [message, setMessage] = useState("");
+  useEffect(() => {
+    api("/platform/communication-pricing").then(setPricing);
+  }, []);
+  if (!pricing)
+    return <section className="tenant-table">Loading prices…</section>;
+  return (
+    <section className="tenant-table">
+      <div className="table-title">
+        <div>
+          <h2>Platform communication pricing</h2>
+          <p>Schools using their own provider credentials are not charged.</p>
+        </div>
+      </div>
+      <form
+        className="security-policy-form"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget);
+          const saved = await api("/platform/communication-pricing", {
+            method: "PUT",
+            body: {
+              smsPriceMinor: Math.round(Number(form.get("smsPrice")) * 100),
+              emailPriceMinor: Math.round(Number(form.get("emailPrice")) * 100),
+              currency: form.get("currency"),
+            },
+          });
+          setPricing(saved);
+          setMessage("Messaging prices saved.");
+        }}
+      >
+        <label>
+          SMS price
+          <input
+            name="smsPrice"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={pricing.smsPriceMinor / 100}
+            required
+          />
+        </label>
+        <label>
+          Email price
+          <input
+            name="emailPrice"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={pricing.emailPriceMinor / 100}
+            required
+          />
+        </label>
+        <label>
+          Currency
+          <select name="currency" defaultValue={pricing.currency}>
+            <option>NGN</option>
+          </select>
+        </label>
+        <button>Save prices</button>
+      </form>
+      {message && <p className="success">{message}</p>}
+    </section>
   );
 }
 export function PlatformAdmin() {
@@ -814,6 +885,8 @@ export function PlatformAdmin() {
         );
       case "security":
         return <SecurityCentre />;
+      case "messaging":
+        return <MessagingPricing />;
       case "health":
         return (
           <div style={{ display: "grid", gap: "16px" }}>

@@ -1328,7 +1328,10 @@ export function adminRouter() {
         where: scope
           ? { student: { classId: { in: scope.classWideIds } } }
           : {},
-        include: { student: { select: { name: true } } },
+        include: {
+          student: { select: { name: true } },
+          feeStructure: { select: { id: true, name: true } },
+        },
         orderBy: { createdAt: "desc" },
         take: 500,
       }),
@@ -1339,6 +1342,7 @@ export function adminRouter() {
       .object({
         reference: z.string().trim().min(1).max(100),
         studentId: id,
+        feeStructureId: id.nullable().default(null),
         amountMinor: z.number().int().positive().max(2000000000),
         currency: z.string().regex(/^[A-Z]{3}$/),
         description: z.string().trim().min(1).max(500),
@@ -1350,6 +1354,16 @@ export function adminRouter() {
           where: { id: data.studentId, role: "STUDENT" },
         });
         if (!student) throw new HttpError(400, "Invalid student");
+        if (data.feeStructureId) {
+          const fee = await tx.feeStructure.findUnique({
+            where: { id: data.feeStructureId },
+          });
+          if (!fee || fee.classId !== student.classId)
+            throw new HttpError(
+              400,
+              "Choose a fee configured for this student's class",
+            );
+        }
         await assertClassWideScope(req, student.classId, tx);
         const p = await tx.payment.create({ data });
         await enqueue(tx, "payment.recorded", p.id, p);
@@ -1496,7 +1510,7 @@ export function adminRouter() {
       emailProvider: row?.emailProvider || "PLATFORM",
       emailFrom: row?.emailFrom || "",
       resendConfigured: !!row?.resendApiKeyEncrypted,
-      smsProvider: row?.smsProvider || "DISABLED",
+      smsProvider: row?.smsProvider || "PLATFORM",
       twilioFrom: row?.twilioFrom || "",
       twilioConfigured:
         !!row?.twilioSidEncrypted && !!row?.twilioTokenEncrypted,
@@ -1508,7 +1522,7 @@ export function adminRouter() {
           emailProvider: z.enum(["PLATFORM", "RESEND"]),
           emailFrom: z.union([z.literal(""), z.string().email()]),
           resendApiKey: z.string().trim().max(300).default(""),
-          smsProvider: z.enum(["DISABLED", "TWILIO"]),
+          smsProvider: z.enum(["PLATFORM", "DISABLED", "TWILIO"]),
           twilioAccountSid: z.string().trim().max(100).default(""),
           twilioAuthToken: z.string().trim().max(300).default(""),
           twilioFrom: z.string().trim().max(30).default(""),
@@ -1597,15 +1611,13 @@ export function adminRouter() {
   });
   r.get("/settings", async (req, res) => {
     const [settings, subscription] = await Promise.all([
-      db.appSetting
-        .findFirst()
-        .then(
-          (row) =>
-            row ||
-            db.appSetting.create({
-              data: { ...defaults, organizationId: req.user.organizationId },
-            }),
-        ),
+      db.appSetting.findFirst().then(
+        (row) =>
+          row ||
+          db.appSetting.create({
+            data: { ...defaults, organizationId: req.user.organizationId },
+          }),
+      ),
       db.subscription.findFirst({
         where: { organizationId: req.user.organizationId },
         include: { plan: { select: { name: true, code: true } } },

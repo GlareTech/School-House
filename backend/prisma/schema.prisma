@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
 }
 
@@ -23,18 +23,20 @@ enum SubscriptionStatus {
 }
 
 model Organization {
-  id            String         @id @default(cuid())
-  name          String
-  slug          String         @unique
-  active        Boolean        @default(true)
-  trialEndsAt   DateTime?
-  users         User[]
-  subscriptions Subscription[]
-  wallet        Wallet?
-  syncDevices   SyncDevice[]
+  id              String                        @id @default(cuid())
+  name            String
+  slug            String                        @unique
+  active          Boolean                       @default(true)
+  trialEndsAt     DateTime?
+  users           User[]
+  subscriptions   Subscription[]
+  wallet          Wallet?
+  syncDevices     SyncDevice[]
   providerSetting CommunicationProviderSetting?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  financeSetting  FinanceSetting?
+  feeStructures   FeeStructure[]
+  createdAt       DateTime                      @default(now())
+  updatedAt       DateTime                      @updatedAt
 }
 
 model SubscriptionPlan {
@@ -59,24 +61,24 @@ model Subscription {
   id                       String             @id @default(cuid())
   organizationId           String
   organization             Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  planId                    String
-  plan                      SubscriptionPlan   @relation(fields: [planId], references: [id])
-  status                    SubscriptionStatus @default(TRIALING)
-  trialStartsAt             DateTime
-  trialEndsAt               DateTime
-  currentPeriodStart        DateTime?
-  currentPeriodEnd          DateTime?
-  paystackCustomerCode      String?
-  paystackSubscriptionCode  String?            @unique
-  paystackEmailToken        String?
+  planId                   String
+  plan                     SubscriptionPlan   @relation(fields: [planId], references: [id])
+  status                   SubscriptionStatus @default(TRIALING)
+  trialStartsAt            DateTime
+  trialEndsAt              DateTime
+  currentPeriodStart       DateTime?
+  currentPeriodEnd         DateTime?
+  paystackCustomerCode     String?
+  paystackSubscriptionCode String?            @unique
+  paystackEmailToken       String?
   authorizationCode        String?
   authorizationSignature   String?
-  cardBrand                 String?
-  cardLast4                 String?
-  nextChargeAt              DateTime?
-  cancelledAt               DateTime?
-  createdAt                 DateTime            @default(now())
-  updatedAt                 DateTime            @updatedAt
+  cardBrand                String?
+  cardLast4                String?
+  nextChargeAt             DateTime?
+  cancelledAt              DateTime?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
 
   @@index([organizationId, status])
 }
@@ -103,11 +105,11 @@ model PlatformSession {
 }
 
 model SecuritySetting {
-  id               String   @id @default("platform")
-  mode             String   @default("MONITOR")
-  requestsPerMinute Int     @default(240)
-  blockedIpHashes  Json     @default("[]")
-  updatedAt        DateTime @updatedAt
+  id                String   @id @default("platform")
+  mode              String   @default("MONITOR")
+  requestsPerMinute Int      @default(240)
+  blockedIpHashes   Json     @default("[]")
+  updatedAt         DateTime @updatedAt
 }
 
 model SecurityEvent {
@@ -124,6 +126,14 @@ model SecurityEvent {
 
   @@index([createdAt])
   @@index([ipHash, createdAt])
+}
+
+model PlatformCommunicationPrice {
+  id              String   @id @default("platform")
+  smsPriceMinor   Int      @default(500)
+  emailPriceMinor Int      @default(100)
+  currency        String   @default("NGN")
+  updatedAt       DateTime @updatedAt
 }
 
 enum ExamStatus {
@@ -151,6 +161,7 @@ model User {
   passwordHash              String
   role                      Role                     @default(STUDENT)
   active                    Boolean                  @default(true)
+  feeSuspended              Boolean                  @default(false)
   classId                   String?
   staffRoleId               String?
   profilePictureId          String?                  @unique
@@ -175,6 +186,7 @@ model User {
   attempts                  Attempt[]
   attendance                Attendance[]
   payments                  Payment[]
+  feeConcessions            StudentFeeConcession[]
   staffProfile              StaffProfile?
   teachingAssignments       ClassSubject[]           @relation("SubjectTeacher")
   staffClasses              StaffClass[]             @relation("StaffClasses")
@@ -196,8 +208,8 @@ model User {
   hostelAllocationsMade     HostelAllocation[]       @relation("HostelAllocator")
   communicationCampaigns    CommunicationCampaign[]  @relation("CommunicationSender")
   communicationRecipients   CommunicationRecipient[] @relation("CommunicationStudent")
-  staffAttendance           StaffAttendance[]         @relation("StaffAttendanceUser")
-  timetableEntries          TimetableEntry[]           @relation("TimetableTeacher")
+  staffAttendance           StaffAttendance[]        @relation("StaffAttendanceUser")
+  timetableEntries          TimetableEntry[]         @relation("TimetableTeacher")
   createdAt                 DateTime                 @default(now())
   organizationId            String
   organization              Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -207,12 +219,12 @@ model User {
 }
 
 model StaffRole {
-  id          String           @id @default(cuid())
-  name        String
-  description String           @default("")
-  users       User[]
-  grants      StaffRoleGrant[]
-  createdAt   DateTime         @default(now())
+  id             String           @id @default(cuid())
+  name           String
+  description    String           @default("")
+  users          User[]
+  grants         StaffRoleGrant[]
+  createdAt      DateTime         @default(now())
   organizationId String
 
   @@unique([organizationId, name])
@@ -274,15 +286,15 @@ model Session {
 }
 
 model SignupIntent {
-  id           String   @id @default(cuid())
+  id           String           @id @default(cuid())
   schoolName   String
   name         String
-  email        String   @unique
+  email        String           @unique
   passwordHash String
-  reference    String   @unique
+  reference    String           @unique
   planId       String
   plan         SubscriptionPlan @relation(fields: [planId], references: [id])
-  createdAt    DateTime @default(now())
+  createdAt    DateTime         @default(now())
 }
 
 model Class {
@@ -301,10 +313,12 @@ model Class {
   promotionSources       PromotionRule[]         @relation("PromotionSource")
   promotionTargets       PromotionRule[]         @relation("PromotionTarget")
   communicationCampaigns CommunicationCampaign[]
+  feeStructures          FeeStructure[]
   timetableEntries       TimetableEntry[]
   createdAt              DateTime                @default(now())
 
-  organizationId         String
+  organizationId String
+
   @@unique([organizationId, name])
   @@index([organizationId])
 }
@@ -411,14 +425,14 @@ model Incident {
 }
 
 model Attendance {
-  id           String           @id @default(cuid())
-  studentId    String
-  student      User             @relation(fields: [studentId], references: [id])
-  date         DateTime         @db.Date
-  status       AttendanceStatus
-  source       String           @default("STAFF")
-  reviewStatus String           @default("APPROVED")
-  updatedAt    DateTime         @updatedAt
+  id             String           @id @default(cuid())
+  studentId      String
+  student        User             @relation(fields: [studentId], references: [id])
+  date           DateTime         @db.Date
+  status         AttendanceStatus
+  source         String           @default("STAFF")
+  reviewStatus   String           @default("APPROVED")
+  updatedAt      DateTime         @updatedAt
   organizationId String
 
   @@unique([studentId, date])
@@ -444,64 +458,116 @@ model AttendanceWindow {
 }
 
 model Payment {
-  id          String   @id @default(cuid())
-  reference   String   @unique
-  studentId   String
-  student     User     @relation(fields: [studentId], references: [id])
-  amountMinor Int
-  currency    String   @default("NGN")
-  description String
-  createdAt   DateTime @default(now())
+  id             String        @id @default(cuid())
+  reference      String        @unique
+  studentId      String
+  student        User          @relation(fields: [studentId], references: [id])
+  amountMinor    Int
+  currency       String        @default("NGN")
+  description    String
+  feeStructureId String?
+  feeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
   organizationId String
 
   @@index([organizationId])
 }
 
+model FinanceSetting {
+  id                    String       @id @default(cuid())
+  organizationId        String       @unique
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  suspendUnpaidStudents Boolean      @default(false)
+  updatedAt             DateTime     @updatedAt
+}
+
+model FeeStructure {
+  id             String                 @id @default(cuid())
+  organizationId String
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  classId        String
+  class          Class                  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  sessionId      String
+  session        AcademicSession        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  termId         String?
+  term           Term?                  @relation(fields: [termId], references: [id], onDelete: Cascade)
+  name           String
+  amountMinor    Int
+  currency       String                 @default("NGN")
+  dueDate        DateTime?              @db.Date
+  active         Boolean                @default(true)
+  payments       Payment[]
+  concessions    StudentFeeConcession[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@unique([organizationId, classId, sessionId, termId, name])
+  @@index([organizationId, sessionId, classId])
+}
+
+model StudentFeeConcession {
+  id             String       @id @default(cuid())
+  studentId      String
+  student        User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feeStructureId String
+  feeStructure   FeeStructure @relation(fields: [feeStructureId], references: [id], onDelete: Cascade)
+  kind           String
+  percent        Int          @default(0)
+  amountMinor    Int          @default(0)
+  reason         String       @default("")
+  createdAt      DateTime     @default(now())
+
+  @@unique([studentId, feeStructureId])
+  @@index([feeStructureId])
+}
+
 model SyncLog {
-  id            String    @id @default(cuid())
-  siteId        String
-  kind          String
-  entityId      String
-  payload       Json
-  createdAt     DateTime  @default(now())
-  syncedAt      DateTime?
-  attempts      Int       @default(0)
-  nextAttemptAt DateTime  @default(now())
-  leaseUntil    DateTime?
-  leaseToken    String?
-  lastError     String?
+  id             String    @id @default(cuid())
+  siteId         String
+  kind           String
+  entityId       String
+  payload        Json
+  createdAt      DateTime  @default(now())
+  syncedAt       DateTime?
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime  @default(now())
+  leaseUntil     DateTime?
+  leaseToken     String?
+  lastError      String?
   organizationId String
 
   @@index([syncedAt, nextAttemptAt])
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  actorId   String
-  action    String
-  entityId  String
-  createdAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  actorId        String
+  action         String
+  entityId       String
+  createdAt      DateTime @default(now())
   organizationId String
 
   @@index([createdAt])
 }
 
 model CommunicationCampaign {
-  id             String                   @id @default(cuid())
-  subject        String                   @default("")
-  body           String
-  audienceType   String
-  recipientType  String
-  classId        String?
-  class          Class?                   @relation(fields: [classId], references: [id], onDelete: SetNull)
-  senderId       String
-  sender         User                     @relation("CommunicationSender", fields: [senderId], references: [id], onDelete: Restrict)
-  status         String                   @default("QUEUED")
-  recipientCount Int
-  createdAt      DateTime                 @default(now())
-  completedAt    DateTime?
-  recipients     CommunicationRecipient[]
-  organizationId String
+  id                 String                   @id @default(cuid())
+  subject            String                   @default("")
+  body               String
+  audienceType       String
+  recipientType      String
+  classId            String?
+  class              Class?                   @relation(fields: [classId], references: [id], onDelete: SetNull)
+  senderId           String
+  sender             User                     @relation("CommunicationSender", fields: [senderId], references: [id], onDelete: Restrict)
+  status             String                   @default("QUEUED")
+  recipientCount     Int
+  estimatedCostMinor Int                      @default(0)
+  chargedCostMinor   Int                      @default(0)
+  createdAt          DateTime                 @default(now())
+  completedAt        DateTime?
+  recipients         CommunicationRecipient[]
+  organizationId     String
 
   @@index([createdAt])
   @@index([senderId, createdAt])
@@ -525,6 +591,8 @@ model CommunicationRecipient {
   sentAt            DateTime?
   providerMessageId String?
   lastError         String?
+  unitPriceMinor    Int                   @default(0)
+  walletState       String                @default("FREE")
   createdAt         DateTime              @default(now())
 
   @@unique([campaignId, channel, destination])
@@ -555,6 +623,7 @@ model AcademicSession {
   terms          Term[]
   promotionRules PromotionRule[]
   promotionRuns  PromotionRun[]
+  feeStructures  FeeStructure[]
   createdAt      DateTime        @default(now())
   organizationId String
 
@@ -577,6 +646,7 @@ model Term {
   reportComments  ReportComment[]
   progressReports ProgressReport[]
   studentRatings  StudentRating[]
+  feeStructures   FeeStructure[]
 
   @@unique([sessionId, name])
 }
@@ -616,27 +686,27 @@ model Subject {
 }
 
 model CommunicationProviderSetting {
-  id                    String   @id @default(cuid())
-  organizationId        String   @unique
+  id                    String       @id @default(cuid())
+  organizationId        String       @unique
   organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  emailProvider         String   @default("PLATFORM")
-  resendApiKeyEncrypted String   @default("")
-  emailFrom             String   @default("")
-  smsProvider           String   @default("DISABLED")
-  twilioSidEncrypted    String   @default("")
-  twilioTokenEncrypted  String   @default("")
-  twilioFrom            String   @default("")
-  updatedAt             DateTime @updatedAt
+  emailProvider         String       @default("PLATFORM")
+  resendApiKeyEncrypted String       @default("")
+  emailFrom             String       @default("")
+  smsProvider           String       @default("DISABLED")
+  twilioSidEncrypted    String       @default("")
+  twilioTokenEncrypted  String       @default("")
+  twilioFrom            String       @default("")
+  updatedAt             DateTime     @updatedAt
 }
 
 model Wallet {
-  id             String   @id @default(cuid())
-  organizationId String   @unique
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  balanceMinor   Int      @default(0)
-  currency       String   @default("NGN")
+  id             String              @id @default(cuid())
+  organizationId String              @unique
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  balanceMinor   Int                 @default(0)
+  currency       String              @default("NGN")
   transactions   WalletTransaction[]
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime            @updatedAt
 }
 
 model WalletTransaction {
@@ -655,15 +725,15 @@ model WalletTransaction {
 }
 
 model SyncDevice {
-  id             String   @id @default(cuid())
+  id             String            @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
   siteId         String
-  tokenHash      String   @unique
-  active         Boolean  @default(true)
+  tokenHash      String            @unique
+  active         Boolean           @default(true)
   lastSeenAt     DateTime?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime          @default(now())
   events         DeviceSyncEvent[]
 
   @@unique([organizationId, siteId])
@@ -671,7 +741,7 @@ model SyncDevice {
 }
 
 model DeviceSyncEvent {
-  id            String   @id @default(cuid())
+  id            String     @id @default(cuid())
   deviceId      String
   device        SyncDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   sequence      Int
@@ -680,7 +750,7 @@ model DeviceSyncEvent {
   entityVersion Int
   payload       Json
   occurredAt    DateTime
-  receivedAt    DateTime @default(now())
+  receivedAt    DateTime   @default(now())
 
   @@unique([deviceId, sequence])
   @@index([deviceId, kind, entityId, entityVersion])
@@ -993,13 +1063,13 @@ model ProgressReport {
 }
 
 model Hostel {
-  id           String       @id @default(cuid())
-  name         String
-  genderPolicy String       @default("MIXED")
-  address      String       @default("")
-  active       Boolean      @default(true)
-  rooms        HostelRoom[]
-  createdAt    DateTime     @default(now())
+  id             String       @id @default(cuid())
+  name           String
+  genderPolicy   String       @default("MIXED")
+  address        String       @default("")
+  active         Boolean      @default(true)
+  rooms          HostelRoom[]
+  createdAt      DateTime     @default(now())
   organizationId String
 
   @@unique([organizationId, name])

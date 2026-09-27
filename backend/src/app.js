@@ -29,6 +29,7 @@ import { platformRouter } from "./platform.js";
 import { paystackWebhook } from "./billing.js";
 import { deviceSyncRouter } from "./device-sync.js";
 import { intrusionDetection } from "./security.js";
+import { financeRouter } from "./finance.js";
 export function createApp(io) {
   const app = express();
   app.disable("x-powered-by");
@@ -97,6 +98,12 @@ export function createApp(io) {
   );
   app.get("/api/assets/:id", publicAsset);
   app.use("/api/admin", authenticate, adminFeatureGate, adminRouter());
+  app.use(
+    "/api/finance",
+    authenticate,
+    requireFeature("payments"),
+    financeRouter(),
+  );
   app.use(
     "/api/academics",
     authenticate,

@@ -1637,6 +1637,34 @@
 .security-policy-form small {
   grid-column: 1/-1;
 }
+
+.finance-page {
+  display: grid;
+  gap: 16px;
+}
+
+.finance-enforcement {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.finance-enforcement small {
+  color: var(--muted, #66736d);
+}
+
+@media (max-width: 720px) {
+  .finance-page .toolbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .finance-enforcement {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
 @media (max-width: 700px) {
   .security-policy-form {
     grid-template-columns: 1fr;

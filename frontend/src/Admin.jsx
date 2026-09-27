@@ -16,6 +16,7 @@ import { HostelManagement } from "./HostelManagement";
 import { Communications } from "./Communications";
 import { BrandImage } from "./BrandImage";
 import { StaffAttendancePage, TimetablePage } from "./SchoolOperations";
+import { FinancePage } from "./Finance";
 import {
   WalletPage,
   ProviderSettings,
@@ -1072,7 +1073,8 @@ export function Admin({ user, settings: publicConfig, logout }) {
         )}{" "}
         {page === "Hostels" && <HostelManagement />}{" "}
         {page === "Communications" && <Communications user={user} />}
-        {page === "Payments" && (
+        {page === "Payments" && <FinancePage classes={classes} run={act} />}
+        {false && page === "Payments" && (
           <>
             <div className="toolbar">
               <Search

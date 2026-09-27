@@ -6,7 +6,10 @@ import { decryptSecret } from "./secrets.js";
 
 let mailer;
 export const communicationCapabilities = () => ({
-  email: { enabled: true, configured: config.MAIL_TRANSPORT !== "disabled" },
+  email: {
+    enabled: true,
+    configured: !!config.RESEND_API_KEY || config.MAIL_TRANSPORT !== "disabled",
+  },
   sms: { enabled: true, configured: config.SMS_TRANSPORT !== "disabled" },
 });
 
@@ -37,6 +40,28 @@ async function sendEmail(recipient, campaign) {
       },
       body: JSON.stringify({
         from: tenant.emailFrom,
+        to: [recipient.destination],
+        subject: campaign.subject,
+        text: campaign.body,
+      }),
+    });
+    if (!response.ok)
+      throw new Error(`Email provider returned ${response.status}`);
+    const result = await response.json();
+    return String(result.id || "").slice(0, 500) || null;
+  }
+  if (config.RESEND_API_KEY) {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      redirect: "error",
+      signal: AbortSignal.timeout(15000),
+      headers: {
+        Authorization: `Bearer ${config.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": recipient.id,
+      },
+      body: JSON.stringify({
+        from: config.RESEND_FROM,
         to: [recipient.destination],
         subject: campaign.subject,
         text: campaign.body,
@@ -238,10 +263,14 @@ export async function deliverCommunicationBatch() {
               }
             : {
                 ...capabilities.sms,
+                enabled:
+                  tenant?.smsProvider !== "DISABLED" &&
+                  capabilities.sms.enabled,
                 configured:
-                  capabilities.sms.configured ||
-                  (tenant?.smsProvider === "TWILIO" &&
-                    !!tenant.twilioTokenEncrypted),
+                  tenant?.smsProvider !== "DISABLED" &&
+                  (capabilities.sms.configured ||
+                    (tenant?.smsProvider === "TWILIO" &&
+                      !!tenant.twilioTokenEncrypted)),
               };
       if (!capability.enabled || !capability.configured)
         throw new Error(
@@ -251,30 +280,72 @@ export async function deliverCommunicationBatch() {
         recipient.channel === "EMAIL"
           ? await sendEmail(recipient, recipient.campaign)
           : await sendSms(recipient, recipient.campaign);
-      await db.communicationRecipient.updateMany({
-        where: { id: recipient.id, leaseToken: token },
-        data: {
-          status: "SENT",
-          sentAt: new Date(),
-          providerMessageId,
-          leaseToken: null,
-          leaseUntil: null,
-          lastError: null,
-        },
+      await db.$transaction(async (tx) => {
+        const updated = await tx.communicationRecipient.updateMany({
+          where: { id: recipient.id, leaseToken: token },
+          data: {
+            status: "SENT",
+            sentAt: new Date(),
+            providerMessageId,
+            leaseToken: null,
+            leaseUntil: null,
+            lastError: null,
+            walletState:
+              recipient.walletState === "RESERVED" ? "CONSUMED" : "FREE",
+          },
+        });
+        if (updated.count && recipient.walletState === "RESERVED")
+          await tx.communicationCampaign.update({
+            where: { id: recipient.campaignId },
+            data: { chargedCostMinor: { increment: recipient.unitPriceMinor } },
+          });
       });
       sent++;
     } catch (error) {
       const terminal = recipient.attempts >= config.COMMUNICATION_MAX_ATTEMPTS;
       const safeError = cleanError(error, recipient.destination);
-      await db.communicationRecipient.updateMany({
-        where: { id: recipient.id, leaseToken: token },
-        data: {
-          status: terminal ? "FAILED" : "QUEUED",
-          availableAt: new Date(Date.now() + retryDelay(recipient.attempts)),
-          leaseToken: null,
-          leaseUntil: null,
-          lastError: safeError,
-        },
+      await db.$transaction(async (tx) => {
+        const updated = await tx.communicationRecipient.updateMany({
+          where: { id: recipient.id, leaseToken: token },
+          data: {
+            status: terminal ? "FAILED" : "QUEUED",
+            availableAt: new Date(Date.now() + retryDelay(recipient.attempts)),
+            leaseToken: null,
+            leaseUntil: null,
+            lastError: safeError,
+            ...(terminal && recipient.walletState === "RESERVED"
+              ? { walletState: "REFUNDED" }
+              : {}),
+          },
+        });
+        if (
+          updated.count &&
+          terminal &&
+          recipient.walletState === "RESERVED" &&
+          recipient.unitPriceMinor > 0
+        ) {
+          const wallet = await tx.wallet.findUnique({
+            where: {
+              organizationId: recipient.campaign.organizationId,
+            },
+          });
+          if (wallet) {
+            await tx.wallet.update({
+              where: { id: wallet.id },
+              data: { balanceMinor: { increment: recipient.unitPriceMinor } },
+            });
+            await tx.walletTransaction.create({
+              data: {
+                walletId: wallet.id,
+                type: "CREDIT",
+                amountMinor: recipient.unitPriceMinor,
+                reference: `communication:refund:${recipient.id}`,
+                description: `Refund for failed ${recipient.channel} delivery`,
+                createdById: recipient.campaign.senderId,
+              },
+            });
+          }
+        }
       });
       failed++;
       logger.warn(
