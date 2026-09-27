@@ -45,8 +45,5 @@
   },
   "engines": {
     "node": ">=22.12"
-  },
-  "overrides": {
-    "gaxios": "^8.1.0"
   }
 }

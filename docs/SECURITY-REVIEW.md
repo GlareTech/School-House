@@ -20,7 +20,7 @@ This review covers authentication, cross-origin access, module controls, file de
 - Communication creation requires a dedicated permission. Whole-school sends are administrator-only; staff remain class-scoped. Recipient contacts are masked in delivery history and replaced by availability flags in the picker.
 - Communication messages have bounded subjects/bodies, validated one-line sender fields, destination validation, per-sender campaign throttling, audience limits, idempotency keys, delivery timeouts and bounded retries. Console delivery is blocked in production. Generic SMS and cloud sync require HTTPS outside tests.
 - Communication tables add foreign keys, uniqueness rules, positive counts, non-negative attempts, and allowlists for audience, recipient, channel and state values.
-- The package vulnerability audit reports no known vulnerabilities at packaging time. `nodemailer` was upgraded to the current fixed major used by this source package.
+- The production dependency audit reports two moderate findings in `uuid@9`, pulled through Firebase Admin's Google Cloud Storage client. The advisory concerns caller-supplied buffers in UUID v3/v5/v6; Schoolhouse does not call those APIs. A forced incompatible override was deliberately rejected because it breaks reproducible App Hosting installs; upgrade when Google Cloud Storage moves off `gaxios@6`.
 
 ## Findings corrected in this release
 
