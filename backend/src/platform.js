@@ -5,6 +5,8 @@ import { z } from "zod";
 import { db } from "./db.js";
 import { config } from "./config.js";
 import { HttpError } from "./domain.js";
+import { clearSecuritySettings } from "./security.js";
+import { verifyHuman } from "./auth.js";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const cookieOptions = {
@@ -56,8 +58,11 @@ export function platformRouter() {
           .email()
           .transform((x) => x.toLowerCase()),
         password: z.string().max(128),
+        robotChallengeId: z.string().min(10).max(100),
+        robotAnswer: z.string().trim().min(1).max(20),
       })
       .parse(req.body);
+    await verifyHuman(input);
     const admin = await db.platformAdmin.findUnique({
         where: { email: input.email },
       }),
@@ -153,12 +158,10 @@ export function platformRouter() {
         features: input.features,
       },
     });
-    res
-      .status(201)
-      .json({
-        ...plan,
-        features: Array.isArray(plan.features) ? plan.features : [],
-      });
+    res.status(201).json({
+      ...plan,
+      features: Array.isArray(plan.features) ? plan.features : [],
+    });
   });
   r.put("/plans/:id", authenticatePlatform, async (req, res) => {
     const input = z
@@ -317,6 +320,74 @@ export function platformRouter() {
     });
     if (!organization) throw new HttpError(404, "School workspace not found");
     await db.organization.delete({ where: { id: organization.id } });
+    res.json({ ok: true });
+  });
+  r.get("/security", authenticatePlatform, async (req, res) => {
+    const query = z
+        .object({ page: z.coerce.number().int().min(1).max(10000).default(1) })
+        .parse(req.query),
+      [settings, events, total] = await Promise.all([
+        db.securitySetting.upsert({
+          where: { id: "platform" },
+          create: { id: "platform" },
+          update: {},
+        }),
+        db.securityEvent.findMany({
+          orderBy: { createdAt: "desc" },
+          skip: (query.page - 1) * 100,
+          take: 100,
+        }),
+        db.securityEvent.count(),
+      ]);
+    res.json({
+      settings: {
+        mode: settings.mode,
+        requestsPerMinute: settings.requestsPerMinute,
+        blockedCount: Array.isArray(settings.blockedIpHashes)
+          ? settings.blockedIpHashes.length
+          : 0,
+      },
+      events,
+      total,
+      page: query.page,
+    });
+  });
+  r.put("/security", authenticatePlatform, async (req, res) => {
+    const input = z
+      .object({
+        mode: z.enum(["MONITOR", "BLOCK"]),
+        requestsPerMinute: z.number().int().min(30).max(10000),
+      })
+      .parse(req.body);
+    await db.securitySetting.upsert({
+      where: { id: "platform" },
+      create: { id: "platform", ...input },
+      update: input,
+    });
+    clearSecuritySettings();
+    res.json({ ok: true });
+  });
+  r.post("/security/block", authenticatePlatform, async (req, res) => {
+    const input = z
+        .object({
+          ipHash: z.string().regex(/^[a-f0-9]{64}$/),
+          blocked: z.boolean(),
+        })
+        .parse(req.body),
+      row = await db.securitySetting.upsert({
+        where: { id: "platform" },
+        create: { id: "platform" },
+        update: {},
+      }),
+      current = Array.isArray(row.blockedIpHashes) ? row.blockedIpHashes : [],
+      blockedIpHashes = input.blocked
+        ? [...new Set([...current, input.ipHash])]
+        : current.filter((value) => value !== input.ipHash);
+    await db.securitySetting.update({
+      where: { id: "platform" },
+      data: { blockedIpHashes },
+    });
+    clearSecuritySettings();
     res.json({ ok: true });
   });
   return r;

@@ -102,6 +102,30 @@ model PlatformSession {
   @@index([expiresAt])
 }
 
+model SecuritySetting {
+  id               String   @id @default("platform")
+  mode             String   @default("MONITOR")
+  requestsPerMinute Int     @default(240)
+  blockedIpHashes  Json     @default("[]")
+  updatedAt        DateTime @updatedAt
+}
+
+model SecurityEvent {
+  id        String   @id @default(cuid())
+  severity  String
+  kind      String
+  ipHash    String
+  method    String
+  path      String
+  userAgent String   @default("")
+  detail    String   @default("")
+  blocked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([ipHash, createdAt])
+}
+
 enum ExamStatus {
   DRAFT
   PUBLISHED

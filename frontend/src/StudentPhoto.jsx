@@ -24,12 +24,6 @@ export function StudentPhoto({ file, onChange }) {
     if (camera && videoRef.current)
       videoRef.current.srcObject = streamRef.current;
   }, [camera]);
-  useEffect(
-    () => () => {
-      if (capturedUrl) URL.revokeObjectURL(capturedUrl);
-    },
-    [capturedUrl],
-  );
   const start = async () => {
     setError("");
     setCapturedUrl("");
@@ -59,24 +53,17 @@ export function StudentPhoto({ file, onChange }) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d").drawImage(video, 0, 0);
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) return setError("The photo could not be captured.");
-        setCapturedUrl(URL.createObjectURL(blob));
-        setZoom(1);
-        setOffsetX(0);
-        setOffsetY(0);
-        stop();
-      },
-      "image/jpeg",
-      0.94,
-    );
+    setCapturedUrl(canvas.toDataURL("image/jpeg", 0.94));
+    setZoom(1);
+    setOffsetX(0);
+    setOffsetY(0);
+    stop();
   };
   useEffect(() => {
     if (!capturedUrl) return;
     const image = new Image();
     capturedImageRef.current = image;
-    image.onload = () => drawCrop();
+    image.onload = () => requestAnimationFrame(drawCrop);
     image.src = capturedUrl;
   }, [capturedUrl]);
   useEffect(() => {
@@ -139,7 +126,10 @@ export function StudentPhoto({ file, onChange }) {
           <video ref={videoRef} autoPlay playsInline muted />
         ) : capturedUrl ? (
           <canvas
-            ref={cropCanvasRef}
+            ref={(canvas) => {
+              cropCanvasRef.current = canvas;
+              if (canvas) requestAnimationFrame(drawCrop);
+            }}
             width={cropSize}
             height={cropSize}
             aria-label="Cropped student photo preview"

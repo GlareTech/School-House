@@ -30,6 +30,11 @@ const pageMeta = {
     description:
       "Review which product modules are enabled across the platform.",
   },
+  security: {
+    label: "Security",
+    description:
+      "Monitor suspicious traffic and manage automated intrusion response.",
+  },
 };
 const moduleCatalog = [
   "Academic command centre",
@@ -86,6 +91,136 @@ const packageDefaults = [
     ],
   },
 ];
+function SecurityCentre() {
+  const [data, setData] = useState(null),
+    [error, setError] = useState("");
+  const load = () =>
+    api("/platform/security")
+      .then(setData)
+      .catch((x) => setError(x.message));
+  useEffect(() => {
+    load();
+  }, []);
+  if (!data)
+    return (
+      <section className="tenant-table">
+        <p>{error || "Loading security events…"}</p>
+      </section>
+    );
+  const save = async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      await api("/platform/security", {
+        method: "PUT",
+        body: {
+          mode: form.get("mode"),
+          requestsPerMinute: Number(form.get("requestsPerMinute")),
+        },
+      });
+      await load();
+    } catch (x) {
+      setError(x.message);
+    }
+  };
+  const block = async (event) => {
+    try {
+      await api("/platform/security/block", {
+        method: "POST",
+        body: { ipHash: event.ipHash, blocked: true },
+      });
+      await load();
+    } catch (x) {
+      setError(x.message);
+    }
+  };
+  return (
+    <div className="security-centre">
+      <section className="tenant-table">
+        <div className="table-title">
+          <div>
+            <h2>Intrusion detection</h2>
+            <p>
+              Monitor suspicious requests or actively block detected attack
+              patterns.
+            </p>
+          </div>
+          <span>{data.total} events</span>
+        </div>
+        <form className="security-policy-form" onSubmit={save}>
+          <label>
+            Response mode
+            <select name="mode" defaultValue={data.settings.mode}>
+              <option value="MONITOR">Monitor only</option>
+              <option value="BLOCK">Monitor and block</option>
+            </select>
+          </label>
+          <label>
+            Requests per IP / minute
+            <input
+              name="requestsPerMinute"
+              type="number"
+              min="30"
+              max="10000"
+              defaultValue={data.settings.requestsPerMinute}
+            />
+          </label>
+          <button>Save security policy</button>
+          <small>
+            {data.settings.blockedCount} IP fingerprints manually blocked
+          </small>
+        </form>
+        {error && <p className="error">{error}</p>}
+      </section>
+      <section className="tenant-table">
+        <div className="table-title">
+          <div>
+            <h2>Recent security events</h2>
+            <p>IP addresses are stored as one-way hashes.</p>
+          </div>
+        </div>
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Detection</th>
+                <th>Request</th>
+                <th>Severity</th>
+                <th>Response</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {data.events.map((row) => (
+                <tr key={row.id}>
+                  <td>{new Date(row.createdAt).toLocaleString()}</td>
+                  <td>
+                    <b>{row.kind.replaceAll("_", " ")}</b>
+                    <small>{row.ipHash.slice(0, 12)}…</small>
+                  </td>
+                  <td>
+                    {row.method} {row.path}
+                  </td>
+                  <td>{row.severity}</td>
+                  <td>{row.blocked ? "Blocked" : "Observed"}</td>
+                  <td>
+                    <button className="secondary" onClick={() => block(row)}>
+                      Block fingerprint
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!data.events.length && (
+            <p className="empty">No suspicious requests recorded.</p>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
 export function PlatformAdmin() {
   const [admin, setAdmin] = useState(null),
     [data, setData] = useState(null),
@@ -93,8 +228,14 @@ export function PlatformAdmin() {
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [page, setPage] = useState("overview"),
-    [drawerOpen, setDrawerOpen] = useState(false);
+    [drawerOpen, setDrawerOpen] = useState(false),
+    [challenge, setChallenge] = useState(null);
+  const loadChallenge = () =>
+    api("/auth/challenge")
+      .then(setChallenge)
+      .catch(() => setChallenge(null));
   useEffect(() => {
+    loadChallenge();
     api("/platform/me")
       .then(async (x) => {
         setAdmin(x.admin);
@@ -133,6 +274,7 @@ export function PlatformAdmin() {
       );
     } catch (x) {
       setError(x.message);
+      loadChallenge();
     }
   }
   async function logout() {
@@ -217,8 +359,15 @@ export function PlatformAdmin() {
     setData(await api("/platform/dashboard"));
   }
   async function deleteOrganization(organization) {
-    if (!confirm(`Permanently delete ${organization.name}? This cannot be undone.`)) return;
-    await api(`/platform/organizations/${organization.id}`, { method: "DELETE" });
+    if (
+      !confirm(
+        `Permanently delete ${organization.name}? This cannot be undone.`,
+      )
+    )
+      return;
+    await api(`/platform/organizations/${organization.id}`, {
+      method: "DELETE",
+    });
     setData(await api("/platform/dashboard"));
   }
   if (loading)
@@ -258,7 +407,33 @@ export function PlatformAdmin() {
                 required
               />
             </label>
-            <button className="primary wide">Open dashboard</button>
+            <div className="human-check">
+              <input
+                type="hidden"
+                name="robotChallengeId"
+                value={challenge?.id || ""}
+              />
+              <label>
+                Robot check: {challenge?.question || "Loading challenge…"}
+                <input
+                  name="robotAnswer"
+                  type="number"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  required
+                />
+              </label>
+              <button
+                type="button"
+                className="text-button"
+                onClick={loadChallenge}
+              >
+                New question
+              </button>
+            </div>
+            <button className="primary wide" disabled={!challenge}>
+              Open dashboard
+            </button>
             {error && <p className="error">{error}</p>}
           </form>
           <a href="/">← Return to Schoolhouse</a>
@@ -328,12 +503,46 @@ export function PlatformAdmin() {
                       </td>
                       <td>{new Date(o.createdAt).toLocaleDateString()}</td>
                       <td className="platform-account-actions">
-                        <select aria-label={`Subscription plan for ${o.name}`} value={o.subscription?.planId || ""} onChange={(event)=>manageOrganization(o.id,{planId:event.target.value}).catch(x=>setError(x.message))}>
-                          <option value="" disabled>Choose plan</option>
-                          {plans.filter(plan=>plan.id&&plan.active!==false).map(plan=><option key={plan.id} value={plan.id}>{plan.name}</option>)}
+                        <select
+                          aria-label={`Subscription plan for ${o.name}`}
+                          value={o.subscription?.planId || ""}
+                          onChange={(event) =>
+                            manageOrganization(o.id, {
+                              planId: event.target.value,
+                            }).catch((x) => setError(x.message))
+                          }
+                        >
+                          <option value="" disabled>
+                            Choose plan
+                          </option>
+                          {plans
+                            .filter((plan) => plan.id && plan.active !== false)
+                            .map((plan) => (
+                              <option key={plan.id} value={plan.id}>
+                                {plan.name}
+                              </option>
+                            ))}
                         </select>
-                        <button className="secondary" onClick={()=>manageOrganization(o.id,{active:!o.active}).catch(x=>setError(x.message))}>{o.active?"Ban":"Restore"}</button>
-                        <button className="danger" onClick={()=>deleteOrganization(o).catch(x=>setError(x.message))}>Delete</button>
+                        <button
+                          className="secondary"
+                          onClick={() =>
+                            manageOrganization(o.id, {
+                              active: !o.active,
+                            }).catch((x) => setError(x.message))
+                          }
+                        >
+                          {o.active ? "Ban" : "Restore"}
+                        </button>
+                        <button
+                          className="danger"
+                          onClick={() =>
+                            deleteOrganization(o).catch((x) =>
+                              setError(x.message),
+                            )
+                          }
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -603,6 +812,8 @@ export function PlatformAdmin() {
             ))}
           </div>
         );
+      case "security":
+        return <SecurityCentre />;
       case "health":
         return (
           <div style={{ display: "grid", gap: "16px" }}>

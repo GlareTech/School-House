@@ -1,0 +1,105 @@
+.auth-page-new {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 15% 20%, #d9f0d8 0, transparent 35%),
+    linear-gradient(135deg, #eff6f2, #edf1e8);
+  overflow: hidden;
+}
+.auth-page-new:before {
+  content: "";
+  position: absolute;
+  inset: 4% 3%;
+  z-index: -1;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 36px;
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 24px 80px rgba(17, 62, 52, 0.12);
+}
+.auth-story {
+  animation: auth-slide-in 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.auth-panel {
+  background: rgba(255, 255, 255, 0.62) !important;
+  backdrop-filter: blur(22px) saturate(1.2);
+  border-left: 1px solid rgba(255, 255, 255, 0.8);
+  animation: auth-fade-in 0.7s 0.12s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.auth-form-wrap {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.auth-form-wrap input,
+.auth-form-wrap select {
+  background: rgba(255, 255, 255, 0.8);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+.auth-form-wrap input:focus,
+.auth-form-wrap select:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(16, 61, 54, 0.1);
+}
+.human-check {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.6rem 1rem;
+  align-items: end;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid rgba(137, 163, 151, 0.35);
+  border-radius: 14px;
+  background: rgba(242, 248, 244, 0.72);
+}
+.human-check legend {
+  padding: 0 6px;
+}
+.human-check label {
+  min-width: 0;
+}
+.human-check .text-button {
+  white-space: nowrap;
+}
+@keyframes auth-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes auth-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (max-width: 700px) {
+  .auth-page-new:before {
+    inset: 1%;
+    border-radius: 20px;
+  }
+  .human-check {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-story,
+  .auth-panel {
+    animation: none;
+  }
+  .auth-form-wrap input,
+  .auth-form-wrap select {
+    transition: none;
+  }
+}

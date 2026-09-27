@@ -31,6 +31,14 @@ export const PERMISSIONS = [
   "SETTINGS_MANAGE",
 ];
 const hash = (value) => createHash("sha256").update(value).digest("hex");
+export async function verifyHuman(input) {
+  const challenge = await cache.take(`human:${input.robotChallengeId}`);
+  if (!challenge || challenge.answer !== String(input.robotAnswer).trim())
+    throw new HttpError(
+      400,
+      "Robot check failed. Please try the new question.",
+    );
+}
 const cookieOptions = {
   httpOnly: true,
   sameSite: config.COOKIE_SAME_SITE,
@@ -156,6 +164,17 @@ export const publicUser = (u) => ({
   planFeatures: u.organization?.subscriptions?.[0]?.plan?.features || null,
 });
 export function authRoutes(app) {
+  app.get("/api/auth/challenge", async (_req, res) => {
+    const left = 2 + Math.floor(Math.random() * 8),
+      right = 1 + Math.floor(Math.random() * 9),
+      id = randomBytes(18).toString("base64url");
+    await cache.put(
+      `human:${id}`,
+      { answer: String(left + right) },
+      5 * 60 * 1000,
+    );
+    res.json({ id, question: `What is ${left} + ${right}?` });
+  });
   app.get("/api/auth/plans", async (_req, res) => {
     res.json(
       await db.subscriptionPlan.findMany({
@@ -186,8 +205,11 @@ export function authRoutes(app) {
           .transform((v) => v.toLowerCase()),
         password: z.string().min(12).max(128),
         planCode: z.string().trim().min(1).max(40),
+        robotChallengeId: z.string().min(10).max(100),
+        robotAnswer: z.string().trim().min(1).max(20),
       })
       .parse(req.body);
+    await verifyHuman(input);
     if (!config.PAYSTACK_SECRET_KEY)
       throw new HttpError(
         503,
@@ -354,8 +376,11 @@ export function authRoutes(app) {
           .max(254)
           .transform((s) => s.toLowerCase()),
         password: z.string().max(128),
+        robotChallengeId: z.string().min(10).max(100),
+        robotAnswer: z.string().trim().min(1).max(20),
       })
       .parse(req.body);
+    await verifyHuman(input);
     // Fail closed for new logins if the shared abuse-control store is unavailable.
     const key = `login:${hash(req.ip + ":" + input.email)}`;
     const ipKey = `login-ip:${hash(req.ip)}`;

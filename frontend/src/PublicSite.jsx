@@ -81,6 +81,31 @@ function Mark() {
     </span>
   );
 }
+function HumanCheck({ challenge, reload }) {
+  return (
+    <fieldset className="human-check">
+      <legend>Robot check</legend>
+      <input
+        type="hidden"
+        name="robotChallengeId"
+        value={challenge?.id || ""}
+      />
+      <label>
+        {challenge?.question || "Loading security question…"}
+        <input
+          name="robotAnswer"
+          inputMode="numeric"
+          autoComplete="off"
+          required
+          disabled={!challenge}
+        />
+      </label>
+      <button type="button" className="text-button" onClick={reload}>
+        New question
+      </button>
+    </fieldset>
+  );
+}
 
 export function PublicSite({ onLogin, loginError, loginBusy }) {
   const params = new URLSearchParams(location.search),
@@ -89,7 +114,15 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
     [selected, setSelected] = useState("growth"),
     [busy, setBusy] = useState(false),
     [contactOpen, setContactOpen] = useState(false),
+    [challenge, setChallenge] = useState(null),
     [error, setError] = useState("");
+  const loadChallenge = () =>
+    api("/auth/challenge")
+      .then(setChallenge)
+      .catch(() => setChallenge(null));
+  useEffect(() => {
+    if (view === "signin" || view === "signup") loadChallenge();
+  }, [view]);
   useEffect(() => {
     api("/auth/plans")
       .then(setPlans)
@@ -132,9 +165,14 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
       location.assign(x.authorizationUrl);
     } catch (x) {
       setError(x.message);
+      loadChallenge();
     } finally {
       setBusy(false);
     }
+  }
+  async function signin(event) {
+    await onLogin(event);
+    await loadChallenge();
   }
   async function verify() {
     setBusy(true);
@@ -214,7 +252,7 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
                   : "Enter your school account details to continue."}
             </p>
             {view === "signin" ? (
-              <form onSubmit={onLogin}>
+              <form onSubmit={signin}>
                 <label>
                   Email address
                   <input
@@ -235,6 +273,7 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
                     required
                   />
                 </label>
+                <HumanCheck challenge={challenge} reload={loadChallenge} />
                 <button className="primary wide" disabled={loginBusy}>
                   {loginBusy ? (
                     <>
@@ -302,6 +341,7 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
                     ))}
                   </select>
                 </label>
+                <HumanCheck challenge={challenge} reload={loadChallenge} />
                 <div className="trial-note">
                   <b>No subscription charge today.</b>
                   <span>

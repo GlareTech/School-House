@@ -1,0 +1,4 @@
+CREATE TABLE "SecuritySetting" ("id" TEXT NOT NULL DEFAULT 'platform',"mode" TEXT NOT NULL DEFAULT 'MONITOR',"requestsPerMinute" INTEGER NOT NULL DEFAULT 240,"blockedIpHashes" JSONB NOT NULL DEFAULT '[]',"updatedAt" TIMESTAMP(3) NOT NULL,CONSTRAINT "SecuritySetting_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "SecurityEvent" ("id" TEXT NOT NULL,"severity" TEXT NOT NULL,"kind" TEXT NOT NULL,"ipHash" TEXT NOT NULL,"method" TEXT NOT NULL,"path" TEXT NOT NULL,"userAgent" TEXT NOT NULL DEFAULT '',"detail" TEXT NOT NULL DEFAULT '',"blocked" BOOLEAN NOT NULL DEFAULT false,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,CONSTRAINT "SecurityEvent_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "SecurityEvent_createdAt_idx" ON "SecurityEvent"("createdAt");
+CREATE INDEX "SecurityEvent_ipHash_createdAt_idx" ON "SecurityEvent"("ipHash", "createdAt");
