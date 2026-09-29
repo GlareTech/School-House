@@ -1933,11 +1933,18 @@ export function fileRoutes(app) {
         "MATERIALS_MANAGE",
         "LIBRARY_MANAGE",
         "SETTINGS_MANAGE",
+        "STUDENTS_MANAGE",
       ].some((p) => has(req, p))
     )
       throw new HttpError(403, "Your staff role does not permit uploads");
     if (
       purpose === "profile" &&
+      req.user.role !== "ADMIN" &&
+      !has(req, "STUDENTS_MANAGE")
+    )
+      throw new HttpError(403, "Student management permission required");
+    if (
+      purpose === "medical" &&
       req.user.role !== "ADMIN" &&
       !has(req, "STUDENTS_MANAGE")
     )
@@ -1954,32 +1961,28 @@ export function fileRoutes(app) {
       storageName = randomBytes(24).toString("hex") + mimeExt[mime],
       bucket = storageBucket();
     if (bucket)
-      await bucket
-        .file(`uploads/${storageName}`)
-        .save(req.body, {
-          resumable: false,
-          contentType: mime,
-          metadata: { cacheControl: "private, max-age=0" },
-          preconditionOpts: { ifGenerationMatch: 0 },
-        });
+      await bucket.file(`uploads/${storageName}`).save(req.body, {
+        resumable: false,
+        contentType: mime,
+        metadata: { cacheControl: "private, max-age=0" },
+        preconditionOpts: { ifGenerationMatch: 0 },
+      });
     else {
       await mkdir(dir, { recursive: true });
       await writeFile(join(dir, storageName), req.body, { flag: "wx" });
     }
-    res
-      .status(201)
-      .json(
-        await db.storedFile.create({
-          data: {
-            storageName,
-            originalName: original,
-            mimeType: mime,
-            size: req.body.length,
-            purpose,
-            createdById: req.user.id,
-          },
-        }),
-      );
+    res.status(201).json(
+      await db.storedFile.create({
+        data: {
+          storageName,
+          originalName: original,
+          mimeType: mime,
+          size: req.body.length,
+          purpose,
+          createdById: req.user.id,
+        },
+      }),
+    );
   });
   app.get("/api/files/:id", async (req, res) => {
     const f = await db.storedFile.findUnique({
@@ -2086,6 +2089,7 @@ export function fileRoutes(app) {
             OR: [
               { createdById: req.user.id },
               { profileFor: { classId: { in: classIds } } },
+              { medicalRecordFor: { classId: { in: classIds } } },
               {
                 assignmentAttachments: {
                   some: { assignment: { classSubjectId: { in: courseIds } } },

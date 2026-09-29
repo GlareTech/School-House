@@ -56,6 +56,9 @@ http.listen(config.PORT, '0.0.0.0', () => logger.info({ port: config.PORT }, 'Sc
 async function initializeServices() {
   try {
     await db.$connect();
+    await db.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "medicalRecordFileId" TEXT');
+    await db.$executeRawUnsafe('CREATE UNIQUE INDEX IF NOT EXISTS "User_medicalRecordFileId_key" ON "User"("medicalRecordFileId")');
+    await db.$executeRawUnsafe(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'User_medicalRecordFileId_fkey') THEN ALTER TABLE "User" ADD CONSTRAINT "User_medicalRecordFileId_fkey" FOREIGN KEY ("medicalRecordFileId") REFERENCES "StoredFile"("id") ON DELETE SET NULL ON UPDATE CASCADE; END IF; END $$;`);
     await ensurePlatformAdmin();
     dbReady = true;
     logger.info('Cloud SQL ready');

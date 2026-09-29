@@ -214,24 +214,38 @@ export function platformRouter() {
     });
   });
   r.get("/dashboard", authenticatePlatform, async (_req, res) => {
-    const [organizations, activeTrials, activeSubscriptions, totalUsers] =
-      await Promise.all([
-        db.organization.findMany({
-          include: {
-            subscriptions: {
-              include: { plan: true },
-              orderBy: { createdAt: "desc" },
-              take: 1,
-            },
-            _count: { select: { users: true } },
+    const [
+      organizations,
+      activeTrials,
+      activeSubscriptions,
+      totalUsers,
+      roleCounts,
+    ] = await Promise.all([
+      db.organization.findMany({
+        include: {
+          subscriptions: {
+            include: { plan: true },
+            orderBy: { createdAt: "desc" },
+            take: 1,
           },
-          orderBy: { createdAt: "desc" },
-          take: 250,
-        }),
-        db.subscription.count({ where: { status: "TRIALING" } }),
-        db.subscription.count({ where: { status: "ACTIVE" } }),
-        db.user.count(),
-      ]);
+          _count: { select: { users: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 250,
+      }),
+      db.subscription.count({ where: { status: "TRIALING" } }),
+      db.subscription.count({ where: { status: "ACTIVE" } }),
+      db.user.count(),
+      db.user.groupBy({
+        by: ["organizationId", "role"],
+        _count: { _all: true },
+      }),
+    ]);
+    const countFor = (organizationId, role) =>
+      roleCounts.find(
+        (count) =>
+          count.organizationId === organizationId && count.role === role,
+      )?._count._all || 0;
     const monthlyRevenueMinor = organizations.reduce(
       (sum, o) =>
         sum +
@@ -256,6 +270,8 @@ export function platformRouter() {
         trialEndsAt: o.trialEndsAt,
         createdAt: o.createdAt,
         userCount: o._count.users,
+        studentCount: countFor(o.id, "STUDENT"),
+        staffCount: countFor(o.id, "STAFF"),
         subscription: o.subscriptions[0] || null,
       })),
     });

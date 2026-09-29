@@ -6,12 +6,14 @@ import { Student } from "./Student";
 import { BrandImage } from "./BrandImage";
 import { PublicSite } from "./PublicSite";
 import { PlatformAdmin } from "./PlatformAdmin";
+import { UserProfile } from "./UserProfile";
 import "./style.css";
 import "./extras.css";
 import "./progress-report.css";
 import "./saas.css";
 import "./webcam.css";
 import "./auth-refresh.css";
+import "./profile.css";
 function App() {
   if (location.pathname.startsWith("/platform")) return <PlatformAdmin />;
   const [user, setUser] = useState(null),
@@ -23,7 +25,8 @@ function App() {
     }),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [profileOpen, setProfileOpen] = useState(false);
   useEffect(() => {
     Promise.allSettled([api("/config/public"), api("/auth/me")])
       .then(([c, u]) => {
@@ -89,6 +92,13 @@ function App() {
     return <PublicSite onLogin={login} loginError={error} loginBusy={busy} />;
   return (
     <>
+      <button
+        className="account-profile-trigger"
+        onClick={() => setProfileOpen(true)}
+        aria-label="Open user profile"
+      >
+        <span>{user.name.slice(0, 1).toUpperCase()}</span> My profile
+      </button>
       {error && (
         <div role="alert" className="error">
           {error}
@@ -99,6 +109,12 @@ function App() {
       ) : (
         <Admin user={user} settings={settings} logout={logout} />
       )}
+      <UserProfile
+        user={user}
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        onUpdated={setUser}
+      />
     </>
   );
 }

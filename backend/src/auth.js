@@ -154,6 +154,8 @@ export const publicUser = (u) => ({
   role: u.role,
   classId: u.classId,
   profilePictureId: u.profilePictureId || null,
+  phone: u.phone || "",
+  address: u.address || "",
   staffRole: u.staffRole
     ? { id: u.staffRole.id, name: u.staffRole.name }
     : null,
@@ -457,6 +459,59 @@ export function authRoutes(app) {
   app.get("/api/auth/me", authenticate, (req, res) =>
     res.json({ user: publicUser(req.user), csrf: req.session.csrf }),
   );
+  app.patch("/api/auth/profile", authenticate, async (req, res) => {
+    const input = z
+      .object({
+        name: z.string().trim().min(2).max(120),
+        phone: z.string().trim().max(50).default(""),
+        address: z.string().trim().max(1000).default(""),
+      })
+      .strict()
+      .parse(req.body);
+    const user = await db.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: req.user.id },
+        data: input,
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: req.user.id,
+          action: "account.profile.update",
+          entityId: req.user.id,
+          organizationId: req.user.organizationId,
+        },
+      });
+      return updated;
+    });
+    res.json({ user: { ...publicUser(req.user), ...input, id: user.id } });
+  });
+  app.post("/api/auth/change-password", authenticate, async (req, res) => {
+    const input = z
+      .object({
+        currentPassword: z.string().min(1).max(128),
+        newPassword: z.string().min(12).max(128),
+      })
+      .strict()
+      .parse(req.body);
+    if (!(await bcrypt.compare(input.currentPassword, req.user.passwordHash)))
+      throw new HttpError(400, "Current password is incorrect");
+    const passwordHash = await bcrypt.hash(input.newPassword, 12);
+    await db.$transaction([
+      db.user.update({ where: { id: req.user.id }, data: { passwordHash } }),
+      db.session.deleteMany({
+        where: { userId: req.user.id, id: { not: req.session.id } },
+      }),
+      db.auditLog.create({
+        data: {
+          actorId: req.user.id,
+          action: "account.password.change",
+          entityId: req.user.id,
+          organizationId: req.user.organizationId,
+        },
+      }),
+    ]);
+    res.json({ ok: true });
+  });
   app.post("/api/auth/logout", authenticate, async (req, res) => {
     await db.$transaction([
       db.session.delete({ where: { id: req.session.id } }),

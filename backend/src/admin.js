@@ -305,6 +305,7 @@ export function adminRouter() {
           guardianAllowEmail: true,
           guardianAllowSms: true,
           medicalInformation: true,
+          medicalRecordFileId: true,
           lastLoginAt: true,
           class: { select: { name: true } },
         },
@@ -336,6 +337,16 @@ export function adminRouter() {
         guardianAllowEmail: true,
         guardianAllowSms: true,
         medicalInformation: true,
+        medicalRecordFileId: true,
+        medicalRecordFile: {
+          select: {
+            id: true,
+            originalName: true,
+            mimeType: true,
+            size: true,
+            createdAt: true,
+          },
+        },
         lastLoginAt: true,
         createdAt: true,
         class: {
@@ -458,6 +469,7 @@ export function adminRouter() {
         guardianAllowEmail: z.boolean().optional(),
         guardianAllowSms: z.boolean().optional(),
         medicalInformation: z.string().max(5000).optional(),
+        medicalRecordFileId: id.nullable().optional(),
       })
       .strict()
       .parse(req.body);
@@ -486,6 +498,18 @@ export function adminRouter() {
           }))
         )
           throw new HttpError(400, "Invalid profile picture");
+        if (
+          data.medicalRecordFileId &&
+          !(await tx.storedFile.findFirst({
+            where: {
+              id: data.medicalRecordFileId,
+              createdById: req.user.id,
+              purpose: "medical",
+              mimeType: { in: ["application/pdf", "image/png", "image/jpeg"] },
+            },
+          }))
+        )
+          throw new HttpError(400, "Invalid medical record file");
         if (
           data.classId &&
           (await tx.attempt.count({

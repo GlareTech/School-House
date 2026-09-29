@@ -543,7 +543,8 @@ export function PlatformAdmin() {
                     <th>School</th>
                     <th>Package</th>
                     <th>Status</th>
-                    <th>Users</th>
+                    <th>Students</th>
+                    <th>Staff</th>
                     <th>Trial / renewal</th>
                     <th>Joined</th>
                     <th>Account controls</th>
@@ -564,7 +565,8 @@ export function PlatformAdmin() {
                           {o.subscription?.status || "ACTIVE"}
                         </span>
                       </td>
-                      <td>{o.userCount}</td>
+                      <td>{o.studentCount || 0}</td>
+                      <td>{o.staffCount || 0}</td>
                       <td>
                         {new Date(
                           o.subscription?.nextChargeAt ||
@@ -612,7 +614,7 @@ export function PlatformAdmin() {
                             )
                           }
                         >
-                          Delete
+                          Delete workspace
                         </button>
                       </td>
                     </tr>
@@ -1048,7 +1050,8 @@ export function PlatformAdmin() {
                       <th>School</th>
                       <th>Package</th>
                       <th>Status</th>
-                      <th>Users</th>
+                      <th>Students</th>
+                      <th>Staff</th>
                       <th>Trial / renewal</th>
                       <th>Joined</th>
                     </tr>
@@ -1068,7 +1071,8 @@ export function PlatformAdmin() {
                             {o.subscription?.status || "ACTIVE"}
                           </span>
                         </td>
-                        <td>{o.userCount}</td>
+                        <td>{o.studentCount || 0}</td>
+                        <td>{o.staffCount || 0}</td>
                         <td>
                           {new Date(
                             o.subscription?.nextChargeAt ||

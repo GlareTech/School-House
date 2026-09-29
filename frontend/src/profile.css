@@ -1,0 +1,50 @@
+.account-profile-trigger {
+  position: fixed;
+  right: 22px;
+  top: 14px;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: #fff;
+  color: var(--primary);
+  border: 1px solid #d5dfd9;
+  box-shadow: 0 5px 20px rgba(13, 48, 40, 0.12);
+}
+.account-profile-trigger span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+}
+.account-profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.account-profile-grid .panel {
+  box-shadow: none;
+  border: 1px solid #dce5df;
+}
+.account-profile-grid h3 {
+  grid-column: 1/-1;
+  margin: 0;
+}
+@media (max-width: 720px) {
+  .account-profile-trigger {
+    right: 12px;
+    top: 9px;
+    padding: 6px 9px;
+    font-size: 0;
+  }
+  .account-profile-trigger span {
+    font-size: 14px;
+  }
+  .account-profile-grid {
+    grid-template-columns: 1fr;
+  }
+}

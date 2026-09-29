@@ -165,6 +165,7 @@ model User {
   classId                   String?
   staffRoleId               String?
   profilePictureId          String?                  @unique
+  medicalRecordFileId       String?                  @unique
   phone                     String                   @default("")
   address                   String                   @default("")
   dateOfBirth               DateTime?                @db.Date
@@ -182,6 +183,7 @@ model User {
   class                     Class?                   @relation(fields: [classId], references: [id])
   staffRole                 StaffRole?               @relation(fields: [staffRoleId], references: [id])
   profilePicture            StoredFile?              @relation("UserProfilePicture", fields: [profilePictureId], references: [id], onDelete: SetNull)
+  medicalRecordFile         StoredFile?              @relation("UserMedicalRecord", fields: [medicalRecordFileId], references: [id], onDelete: SetNull)
   sessions                  Session[]
   attempts                  Attempt[]
   attendance                Attendance[]
@@ -808,6 +810,7 @@ model StoredFile {
   submissionFiles       SubmissionFile[]
   materials             StudyMaterial[]
   profileFor            User?                  @relation("UserProfilePicture")
+  medicalRecordFor      User?                  @relation("UserMedicalRecord")
   libraryMaterials      LibraryMaterial[]
   organizationId        String
 

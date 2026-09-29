@@ -124,6 +124,7 @@ export function Admin({ user, settings: publicConfig, logout }) {
     [appSettings, setAppSettings] = useState(null),
     [dialog, setDialog] = useState(null),
     [studentPhoto, setStudentPhoto] = useState(null),
+    [studentFormError, setStudentFormError] = useState(""),
     [selectedStudentId, setSelectedStudentId] = useState(null),
     [importType, setImportType] = useState(null),
     [drawerOpen, setDrawerOpen] = useState(false);
@@ -216,7 +217,9 @@ export function Admin({ user, settings: publicConfig, logout }) {
     event.preventDefault();
     const form = event.currentTarget,
       d = new FormData(form);
-    act(async () => {
+    setStudentFormError("");
+    setBusy(true);
+    (async () => {
       let profilePictureId = null;
       if (studentPhoto)
         profilePictureId = (await uploadFile(studentPhoto, "profile")).id;
@@ -246,7 +249,11 @@ export function Admin({ user, settings: publicConfig, logout }) {
       form.reset();
       setStudentPhoto(null);
       setDialog(null);
-    }, "Student registered");
+      await refresh();
+      setMessage("Student registered");
+    })()
+      .catch((e) => setStudentFormError(e.message))
+      .finally(() => setBusy(false));
   }
   const active = monitor.filter((a) => a.status === "ACTIVE");
   const find = (...values) =>
@@ -533,6 +540,7 @@ export function Admin({ user, settings: publicConfig, logout }) {
               <button
                 onClick={() => {
                   setStudentPhoto(null);
+                  setStudentFormError("");
                   setDialog("student");
                 }}
               >
@@ -551,11 +559,17 @@ export function Admin({ user, settings: publicConfig, logout }) {
               onClose={() => {
                 setDialog(null);
                 setStudentPhoto(null);
+                setStudentFormError("");
               }}
               wide
             >
               <section className="panel modal-panel">
                 <h2>Student account and profile</h2>
+                {studentFormError && (
+                  <div className="error" role="alert">
+                    {studentFormError}
+                  </div>
+                )}
                 <StudentPhoto file={studentPhoto} onChange={setStudentPhoto} />
                 <form className="form-grid" onSubmit={registerStudent}>
                   <Field label="Full name">
@@ -588,7 +602,12 @@ export function Admin({ user, settings: publicConfig, logout }) {
                     <input name="dateOfBirth" type="date" />
                   </Field>
                   <Field label="Gender">
-                    <input name="gender" />
+                    <select name="gender" defaultValue="">
+                      <option value="">Select gender</option>
+                      <option>Female</option>
+                      <option>Male</option>
+                      <option>Other</option>
+                    </select>
                   </Field>
                   <Field label="Phone">
                     <input name="phone" />
@@ -606,7 +625,14 @@ export function Admin({ user, settings: publicConfig, logout }) {
                     <input name="guardianEmail" type="email" />
                   </Field>
                   <Field label="Relationship">
-                    <input name="emergencyRelationship" />
+                    <select name="emergencyRelationship" defaultValue="">
+                      <option value="">Select relationship</option>
+                      <option>Mother</option>
+                      <option>Father</option>
+                      <option>Guardian</option>
+                      <option>Sibling</option>
+                      <option>Other</option>
+                    </select>
                   </Field>
                   <fieldset>
                     <legend>Communication preferences</legend>
