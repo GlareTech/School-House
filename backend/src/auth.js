@@ -207,6 +207,11 @@ export function authRoutes(app) {
         planCode: z.string().trim().min(1).max(40),
         robotChallengeId: z.string().min(10).max(100),
         robotAnswer: z.string().trim().min(1).max(20),
+        termsAccepted: z.literal("on", {
+          errorMap: () => ({
+            message: "Accept the Terms and Conditions to continue",
+          }),
+        }),
       })
       .parse(req.body);
     await verifyHuman(input);
@@ -231,6 +236,7 @@ export function authRoutes(app) {
         passwordHash,
         reference,
         planId: plan.id,
+        acceptedTermsAt: new Date(),
       },
     });
     try {

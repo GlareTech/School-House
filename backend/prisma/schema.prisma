@@ -286,15 +286,16 @@ model Session {
 }
 
 model SignupIntent {
-  id           String           @id @default(cuid())
-  schoolName   String
-  name         String
-  email        String           @unique
-  passwordHash String
-  reference    String           @unique
-  planId       String
-  plan         SubscriptionPlan @relation(fields: [planId], references: [id])
-  createdAt    DateTime         @default(now())
+  id              String           @id @default(cuid())
+  schoolName      String
+  name            String
+  email           String           @unique
+  passwordHash    String
+  reference       String           @unique
+  planId          String
+  plan            SubscriptionPlan @relation(fields: [planId], references: [id])
+  acceptedTermsAt DateTime
+  createdAt       DateTime         @default(now())
 }
 
 model Class {

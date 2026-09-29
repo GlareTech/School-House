@@ -114,6 +114,7 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
     [selected, setSelected] = useState("growth"),
     [busy, setBusy] = useState(false),
     [contactOpen, setContactOpen] = useState(false),
+    [termsOpen, setTermsOpen] = useState(false),
     [challenge, setChallenge] = useState(null),
     [error, setError] = useState("");
   const loadChallenge = () =>
@@ -212,6 +213,12 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
           <button className="brand-button" onClick={() => navigate("home")}>
             <Mark />
           </button>
+          <img
+            className="auth-student-photo"
+            src="/images/schoolhouse-auth-v1.png"
+            alt="Students working together with a laptop in a school library"
+          />
+          <div className="auth-photo-shade" />
           <div className="auth-copy">
             <span className="eyebrow">SCHOOL OPERATIONS, REIMAGINED</span>
             <h1>
@@ -342,6 +349,16 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
                   </select>
                 </label>
                 <HumanCheck challenge={challenge} reload={loadChallenge} />
+                <label className="terms-consent">
+                  <input name="termsAccepted" type="checkbox" required />
+                  <span>
+                    I agree to the{" "}
+                    <button type="button" onClick={() => setTermsOpen(true)}>
+                      Terms and Conditions
+                    </button>{" "}
+                    and understand the trial and recurring billing terms.
+                  </span>
+                </label>
                 <div className="trial-note">
                   <b>No subscription charge today.</b>
                   <span>
@@ -402,6 +419,64 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
             </p>
           </div>
         </section>
+        {termsOpen && (
+          <div
+            className="contact-modal terms-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="auth-terms-title"
+          >
+            <article className="contact-form terms-document">
+              <button
+                className="contact-close"
+                type="button"
+                aria-label="Close Terms and Conditions"
+                onClick={() => setTermsOpen(false)}
+              >
+                ×
+              </button>
+              <span className="eyebrow">SCHOOLHOUSE CLOUD</span>
+              <h2 id="auth-terms-title">Terms and Conditions</h2>
+              <small>Effective 28 September 2026</small>
+              <h3>Your school workspace</h3>
+              <p>
+                You confirm that you are authorised to create and administer
+                this school workspace and that the supplied information is
+                accurate.
+              </p>
+              <h3>Trial and recurring billing</h3>
+              <p>
+                The seven-day trial requires a valid card. Paystack may make a
+                small verification charge. Unless cancelled before the trial
+                ends, your selected subscription renews automatically at the
+                displayed price and interval.
+              </p>
+              <h3>School data and acceptable use</h3>
+              <p>
+                Your school is responsible for lawful use of student, guardian
+                and staff data, protecting credentials, obtaining communication
+                consent and keeping records accurate. You must not misuse or
+                interfere with the service.
+              </p>
+              <h3>Availability, cancellation and suspension</h3>
+              <p>
+                Maintenance or external provider outages may affect
+                availability. You may cancel future renewal. Access may be
+                restricted for overdue subscriptions, abuse, security risks or
+                legal requirements.
+              </p>
+              <h3>Contact</h3>
+              <p>Questions can be sent to admin@techinvasion.com.ng.</p>
+              <button
+                className="primary wide"
+                type="button"
+                onClick={() => setTermsOpen(false)}
+              >
+                I have read the terms
+              </button>
+            </article>
+          </div>
+        )}
       </main>
     );
   return (
@@ -453,6 +528,23 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
           </div>
         </div>
         <div className="hero-visual">
+          <div className="hero-photo-frame">
+            <img
+              src="/images/schoolhouse-hero-v1.png"
+              alt="Students and a teacher collaborating in a bright classroom"
+              fetchPriority="high"
+            />
+            <div className="hero-photo-glow" />
+          </div>
+          <div className="hero-insight-card attendance-card">
+            <small>Today&apos;s attendance</small>
+            <strong>94%</strong>
+            <span>All classes reporting</span>
+          </div>
+          <div className="hero-insight-card live-card">
+            <i />
+            <span>Everything is running smoothly</span>
+          </div>
           <div className="dashboard-mock">
             <div className="mock-side">
               <Mark />
@@ -704,8 +796,85 @@ export function PublicSite({ onLogin, loginError, loginBusy }) {
           </form>
         </div>
       )}
+      {termsOpen && (
+        <div
+          className="contact-modal terms-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="terms-title"
+          onMouseDown={(event) =>
+            event.target === event.currentTarget && setTermsOpen(false)
+          }
+        >
+          <article className="contact-form terms-document">
+            <button
+              className="contact-close"
+              type="button"
+              aria-label="Close Terms and Conditions"
+              onClick={() => setTermsOpen(false)}
+            >
+              ×
+            </button>
+            <span className="eyebrow">SCHOOLHOUSE CLOUD</span>
+            <h2 id="terms-title">Terms and Conditions</h2>
+            <small>Effective 28 September 2026</small>
+            <h3>1. Your school workspace</h3>
+            <p>
+              You confirm that you are authorised to create and administer the
+              school workspace and that the information supplied is accurate.
+            </p>
+            <h3>2. Trial, card authorisation and billing</h3>
+            <p>
+              The seven-day trial requires a valid card. Paystack may make a
+              small verification charge. Unless cancelled before the trial ends,
+              the selected subscription renews automatically at the displayed
+              interval and price.
+            </p>
+            <h3>3. School data and privacy</h3>
+            <p>
+              Your school remains responsible for the lawful collection,
+              accuracy and use of student, guardian and staff information.
+              Schoolhouse processes that information only to provide and secure
+              the service.
+            </p>
+            <h3>4. Acceptable use</h3>
+            <p>
+              You must protect account credentials and must not misuse the
+              service, interfere with its security, upload unlawful material or
+              send communications without the required consent.
+            </p>
+            <h3>5. Availability and changes</h3>
+            <p>
+              Maintenance, provider outages and events outside reasonable
+              control may affect availability. Material subscription changes
+              will be communicated to account administrators.
+            </p>
+            <h3>6. Cancellation and suspension</h3>
+            <p>
+              You may cancel future renewal. Access may be restricted for
+              overdue subscriptions, abuse, security risks or legal
+              requirements. Export records needed for retention before closure.
+            </p>
+            <h3>7. Contact</h3>
+            <p>
+              Questions about these terms can be sent to
+              admin@techinvasion.com.ng.
+            </p>
+            <button
+              className="primary wide"
+              type="button"
+              onClick={() => setTermsOpen(false)}
+            >
+              I have read the terms
+            </button>
+          </article>
+        </div>
+      )}
       <footer>
         <Mark />
+        <button type="button" onClick={() => setTermsOpen(true)}>
+          Terms and Conditions
+        </button>
         <span>© {new Date().getFullYear()} Schoolhouse Cloud</span>
       </footer>
     </main>
