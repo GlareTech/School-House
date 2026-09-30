@@ -305,7 +305,6 @@ export function adminRouter() {
           guardianAllowEmail: true,
           guardianAllowSms: true,
           medicalInformation: true,
-          medicalRecordFileId: true,
           lastLoginAt: true,
           class: { select: { name: true } },
         },
@@ -337,16 +336,6 @@ export function adminRouter() {
         guardianAllowEmail: true,
         guardianAllowSms: true,
         medicalInformation: true,
-        medicalRecordFileId: true,
-        medicalRecordFile: {
-          select: {
-            id: true,
-            originalName: true,
-            mimeType: true,
-            size: true,
-            createdAt: true,
-          },
-        },
         lastLoginAt: true,
         createdAt: true,
         class: {
@@ -385,7 +374,18 @@ export function adminRouter() {
     });
     if (!student) throw new HttpError(404, "Student not found");
     await assertClassWideScope(req, student.classId);
-    res.json(student);
+    const medicalRecordFile = await db.storedFile.findFirst({
+      where: { purpose: `medical:${student.id}` },
+      select: {
+        id: true,
+        originalName: true,
+        mimeType: true,
+        size: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json({ ...student, medicalRecordFile });
   });
   r.post("/students", async (req, res) => {
     const input = z
@@ -510,6 +510,18 @@ export function adminRouter() {
           }))
         )
           throw new HttpError(400, "Invalid medical record file");
+        const medicalRecordFileId = data.medicalRecordFileId;
+        delete data.medicalRecordFileId;
+        if (medicalRecordFileId === null)
+          await tx.storedFile.updateMany({
+            where: { purpose: `medical:${u.id}` },
+            data: { purpose: "medical-removed" },
+          });
+        else if (medicalRecordFileId)
+          await tx.storedFile.update({
+            where: { id: medicalRecordFileId },
+            data: { purpose: `medical:${u.id}` },
+          });
         if (
           data.classId &&
           (await tx.attempt.count({

@@ -2089,7 +2089,6 @@ export function fileRoutes(app) {
             OR: [
               { createdById: req.user.id },
               { profileFor: { classId: { in: classIds } } },
-              { medicalRecordFor: { classId: { in: classIds } } },
               {
                 assignmentAttachments: {
                   some: { assignment: { classSubjectId: { in: courseIds } } },
@@ -2113,6 +2112,8 @@ export function fileRoutes(app) {
             ],
           },
         }));
+      if (f.purpose.startsWith("medical:") && has(req, "STUDENTS_MANAGE"))
+        permitted = true;
     }
     if (!permitted) throw new HttpError(403, "File access denied");
     const body = await storedBody(f),
