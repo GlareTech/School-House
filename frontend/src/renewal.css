@@ -1,3 +1,38 @@
-.renewal-page{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 20% 15%,#cce9d8,transparent 36%),linear-gradient(145deg,#ebf4ef,#f7faf7)}
-.renewal-card{width:min(520px,100%);padding:clamp(24px,5vw,48px);border:1px solid #fff;border-radius:24px;background:rgba(255,255,255,.88);box-shadow:0 24px 70px rgba(13,48,40,.14);display:grid;gap:18px}
-.renewal-card h1{margin:0;font-size:clamp(30px,5vw,42px);line-height:1.1}.renewal-card p{margin:0}.renewal-plan{display:flex;justify-content:space-between;gap:12px;padding:18px;border-radius:14px;background:#eef6f0}.renewal-card>button:not(.text-button){width:100%}
+.renewal-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 20% 15%, #cce9d8, transparent 36%),
+    linear-gradient(145deg, #ebf4ef, #f7faf7);
+}
+.renewal-card {
+  width: min(520px, 100%);
+  padding: clamp(24px, 5vw, 48px);
+  border: 1px solid #fff;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 24px 70px rgba(13, 48, 40, 0.14);
+  display: grid;
+  gap: 18px;
+}
+.renewal-card h1 {
+  margin: 0;
+  font-size: clamp(30px, 5vw, 42px);
+  line-height: 1.1;
+}
+.renewal-card p {
+  margin: 0;
+}
+.renewal-plan {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 14px;
+  background: #eef6f0;
+}
+.renewal-card > button:not(.text-button) {
+  width: 100%;
+}
