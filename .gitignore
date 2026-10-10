@@ -12,5 +12,6 @@ dataconnect/.dataconnect/
 .env.example
 .firebaserc.example
 paystack-key
+paystack-live
 resend_key
 admin_pwd
