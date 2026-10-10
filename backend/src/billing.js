@@ -5,6 +5,26 @@ import { db } from './db.js';
 
 const endpoint = 'https://api.paystack.co';
 
+export async function subscriptionWalletBalance(client, walletId) {
+  if (!walletId) return 0;
+  const [topups, debits] = await Promise.all([
+    client.walletTransaction.aggregate({ where: { walletId, type: 'CREDIT', reference: { startsWith: 'topup:' } }, _sum: { amountMinor: true } }),
+    client.walletTransaction.aggregate({ where: { walletId, type: 'DEBIT' }, _sum: { amountMinor: true } }),
+  ]);
+  return Math.max(0, (topups._sum.amountMinor || 0) - (debits._sum.amountMinor || 0));
+}
+
+export function nextSubscriptionPeriod(start, interval) {
+  const end = new Date(start);
+  if (interval === 'annually' || interval === 'annual') end.setUTCFullYear(end.getUTCFullYear() + 1);
+  else if (interval === 'biannually') end.setUTCMonth(end.getUTCMonth() + 6);
+  else if (interval === 'quarterly') end.setUTCMonth(end.getUTCMonth() + 3);
+  else if (interval === 'weekly') end.setUTCDate(end.getUTCDate() + 7);
+  else if (interval === 'daily') end.setUTCDate(end.getUTCDate() + 1);
+  else end.setUTCMonth(end.getUTCMonth() + 1);
+  return end;
+}
+
 export async function paystack(path, options = {}) {
   if (!config.PAYSTACK_SECRET_KEY) throw new HttpError(503, 'Payment setup is temporarily unavailable');
   const response = await fetch(endpoint + path, {

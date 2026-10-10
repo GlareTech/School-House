@@ -55,7 +55,7 @@ function App() {
           }));
           if (u.value.user.renewalRequired)
             history.replaceState({}, "", `/renew${location.search}`);
-          else if (!location.pathname.startsWith("/app"))
+          else if (!location.pathname.startsWith("/app") && location.pathname !== "/wallet")
             history.replaceState({}, "", "/app");
         }
       })

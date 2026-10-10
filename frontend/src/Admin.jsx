@@ -102,7 +102,7 @@ export function Admin({ user, settings: publicConfig, logout }) {
     group,
     pages.filter((p) => p[4] === group),
   ]);
-  const [page, setPage] = useState("Overview"),
+  const [page, setPage] = useState(location.pathname === "/wallet" ? "Wallet" : "Overview"),
     [classes, setClasses] = useState([]),
     [students, setStudents] = useState([]),
     [exams, setExams] = useState([]);

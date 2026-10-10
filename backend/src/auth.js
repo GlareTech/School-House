@@ -6,7 +6,7 @@ import { config } from "./config.js";
 import { HttpError } from "./domain.js";
 import { originAllowed } from "./settings.js";
 import { runWithTenant } from "./tenant-context.js";
-import { paystack, sendWelcomeEmail } from "./billing.js";
+import { paystack, sendWelcomeEmail, subscriptionWalletBalance, nextSubscriptionPeriod } from "./billing.js";
 export const PERMISSIONS = [
   "CLASSES_MANAGE",
   "STUDENTS_MANAGE",
@@ -132,6 +132,9 @@ export async function authenticate(req, res, next) {
       "/api/auth/renewal",
       "/api/auth/renewal/initialize",
       "/api/auth/renewal/verify",
+      "/api/auth/renewal/wallet",
+      "/api/auth/wallet/topup/initialize",
+      "/api/auth/wallet/topup/verify",
     ].includes(req.path)
   )
     throw new HttpError(402, "Renew your school subscription to continue");
@@ -482,10 +485,13 @@ export function authRoutes(app) {
   app.get("/api/auth/renewal", authenticate, async (req, res) => {
     const subscription = req.user.organization.subscriptions[0];
     if (!subscription) throw new HttpError(404, "No subscription found");
+    const wallet = await db.wallet.findUnique({ where: { organizationId: req.user.organizationId } });
     res.json({
       required: !tenantAccessAllowed(req.user),
       canPay: req.user.role === "ADMIN",
       schoolName: req.user.organization.name,
+      walletBalanceMinor: await subscriptionWalletBalance(db, wallet?.id),
+      currentPeriodEnd: subscription.currentPeriodEnd,
       plan: {
         name: subscription.plan.name,
         amountMinor: subscription.plan.amountMinor,
@@ -493,6 +499,79 @@ export function authRoutes(app) {
         interval: subscription.plan.interval,
       },
     });
+  });
+  app.post("/api/auth/wallet/topup/initialize", authenticate, async (req, res) => {
+    if (req.user.role !== "ADMIN") throw new HttpError(403, "School administrator access required");
+    const { amountMinor } = z.object({ amountMinor: z.number().int().min(5000).max(100000000) }).strict().parse(req.body);
+    const reference = `topup_${randomBytes(18).toString("hex")}`;
+    const currency = "NGN";
+    const callback = tenantAccessAllowed(req.user) ? "wallet" : "renew";
+    const transaction = await paystack("/transaction/initialize", {
+      method: "POST",
+      body: JSON.stringify({
+        email: req.user.email, amount: amountMinor, currency, reference, channels: ["card"],
+        callback_url: `${config.APP_ORIGINS[0]}/${callback}?topup=${reference}`,
+        metadata: { purpose: "schoolhouse_wallet_topup", organizationId: req.user.organizationId, amountMinor },
+      }),
+    });
+    res.json({ authorizationUrl: transaction.authorization_url });
+  });
+  app.post("/api/auth/wallet/topup/verify", authenticate, async (req, res) => {
+    if (req.user.role !== "ADMIN") throw new HttpError(403, "School administrator access required");
+    const { reference } = z.object({ reference: z.string().regex(/^topup_[a-f0-9]{36}$/) }).strict().parse(req.body);
+    const transaction = await paystack(`/transaction/verify/${reference}`);
+    const metadata = typeof transaction.metadata === "string" ? JSON.parse(transaction.metadata) : transaction.metadata;
+    if (transaction.status !== "success" || transaction.reference !== reference ||
+      !Number.isInteger(transaction.amount) || transaction.amount < 5000 || transaction.amount > 100000000 ||
+      transaction.currency !== "NGN" || transaction.customer?.email?.toLowerCase() !== req.user.email.toLowerCase() ||
+      metadata?.purpose !== "schoolhouse_wallet_topup" || metadata.organizationId !== req.user.organizationId ||
+      Number(metadata.amountMinor) !== transaction.amount)
+      throw new HttpError(402, "Top-up could not be verified for this school");
+    const result = await db.$transaction(async (tx) => {
+      const wallet = await tx.wallet.upsert({
+        where: { organizationId: req.user.organizationId },
+        create: { organizationId: req.user.organizationId, currency: "NGN" }, update: {},
+      });
+      await tx.$queryRaw`SELECT id FROM "Wallet" WHERE id = ${wallet.id} FOR UPDATE`;
+      const existing = await tx.walletTransaction.findUnique({ where: { walletId_reference: { walletId: wallet.id, reference: `topup:${reference}` } } });
+      if (!existing) {
+        await tx.walletTransaction.create({ data: { walletId: wallet.id, type: "CREDIT", amountMinor: transaction.amount, reference: `topup:${reference}`, description: "Verified Paystack wallet top-up", createdById: req.user.id } });
+        await tx.wallet.update({ where: { id: wallet.id }, data: { balanceMinor: { increment: transaction.amount } } });
+      }
+      return { credited: !existing, balanceMinor: await subscriptionWalletBalance(tx, wallet.id) };
+    });
+    res.json(result);
+  });
+  app.post("/api/auth/renewal/wallet", authenticate, async (req, res) => {
+    if (req.user.role !== "ADMIN") throw new HttpError(403, "School administrator access required");
+    const result = await db.$transaction(async (tx) => {
+      const subscriptionId = req.user.organization.subscriptions[0]?.id;
+      if (!subscriptionId) throw new HttpError(404, "No subscription found");
+      await tx.$queryRaw`SELECT id FROM "Subscription" WHERE id = ${subscriptionId} FOR UPDATE`;
+      const subscription = await tx.subscription.findFirst({ where: { id: subscriptionId, organizationId: req.user.organizationId }, include: { plan: true } });
+      if (!subscription) throw new HttpError(404, "No subscription found");
+      const now = new Date();
+      const dueAt = subscription.currentPeriodEnd || subscription.trialEndsAt;
+      if (["ACTIVE", "TRIALING"].includes(subscription.status) && dueAt && dueAt.getTime() - now.getTime() > 7 * 86400000)
+        throw new HttpError(409, "Subscription renewal opens seven days before it is due");
+      const wallet = await tx.wallet.findUnique({ where: { organizationId: req.user.organizationId } });
+      if (!wallet || wallet.currency !== subscription.plan.currency) throw new HttpError(402, "Add verified funds to your wallet first");
+      await tx.$queryRaw`SELECT id FROM "Wallet" WHERE id = ${wallet.id} FOR UPDATE`;
+      const lockedWallet = await tx.wallet.findUnique({ where: { id: wallet.id } });
+      const available = await subscriptionWalletBalance(tx, wallet.id);
+      const amount = subscription.plan.amountMinor;
+      if (available < amount || lockedWallet.balanceMinor < amount) throw new HttpError(402, "Verified wallet funds are insufficient for this renewal");
+      if (subscription.paystackSubscriptionCode && subscription.paystackEmailToken) {
+        await paystack("/subscription/disable", { method: "POST", body: JSON.stringify({ code: subscription.paystackSubscriptionCode, token: subscription.paystackEmailToken }) });
+      }
+      const start = dueAt && dueAt > now ? dueAt : now;
+      const periodEnd = nextSubscriptionPeriod(start, subscription.plan.interval);
+      await tx.wallet.update({ where: { id: wallet.id }, data: { balanceMinor: { decrement: amount } } });
+      await tx.walletTransaction.create({ data: { walletId: wallet.id, type: "DEBIT", amountMinor: amount, reference: `subscription:${randomBytes(18).toString("hex")}`, description: `${subscription.plan.name} subscription renewal`, createdById: req.user.id } });
+      await tx.subscription.update({ where: { id: subscription.id }, data: { status: "ACTIVE", currentPeriodStart: start, currentPeriodEnd: periodEnd, nextChargeAt: periodEnd, cancelledAt: null, paystackSubscriptionCode: null, paystackEmailToken: null } });
+      return { ok: true, periodEnd, balanceMinor: available - amount };
+    });
+    res.json(result);
   });
   app.post("/api/auth/renewal/initialize", authenticate, async (req, res) => {
     if (req.user.role !== "ADMIN")

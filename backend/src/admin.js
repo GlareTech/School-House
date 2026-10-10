@@ -8,6 +8,7 @@ import { HttpError } from "./domain.js";
 import { lockRow } from "./provider.js";
 import { clearSettingsCache, defaults } from "./settings.js";
 import { encryptSecret } from "./secrets.js";
+import { subscriptionWalletBalance } from "./billing.js";
 const id = z.string().min(1).max(100);
 const passwordSchema = z
   .string()
@@ -1503,40 +1504,7 @@ export function adminRouter() {
       update: {},
       include: { transactions: { orderBy: { createdAt: "desc" }, take: 100 } },
     });
-    res.json(wallet);
-  });
-  r.post("/wallet/adjust", admin, async (req, res) => {
-    const input = z
-      .object({
-        type: z.enum(["CREDIT", "DEBIT"]),
-        amountMinor: z.number().int().positive().max(2000000000),
-        reference: z.string().trim().min(1).max(100),
-        description: z.string().trim().min(1).max(300),
-      })
-      .parse(req.body);
-    const result = await db.$transaction(async (tx) => {
-      const wallet = await tx.wallet.upsert({
-        where: { organizationId: req.user.organizationId },
-        create: { organizationId: req.user.organizationId, currency: "NGN" },
-        update: {},
-      });
-      if (input.type === "DEBIT" && wallet.balanceMinor < input.amountMinor)
-        throw new HttpError(409, "Wallet balance is insufficient");
-      const updated = await tx.wallet.update({
-        where: { id: wallet.id },
-        data: {
-          balanceMinor: {
-            increment:
-              input.type === "CREDIT" ? input.amountMinor : -input.amountMinor,
-          },
-        },
-      });
-      await tx.walletTransaction.create({
-        data: { walletId: wallet.id, ...input, createdById: req.user.id },
-      });
-      return updated;
-    });
-    res.json(result);
+    res.json({ ...wallet, subscriptionBalanceMinor: await subscriptionWalletBalance(db, wallet.id) });
   });
   r.get("/providers", admin, async (req, res) => {
     const row = await db.communicationProviderSetting.findUnique({

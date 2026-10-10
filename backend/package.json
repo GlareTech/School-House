@@ -11,7 +11,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node prisma/seed.js",
-    "test": "node --test test/domain.test.js test/features.test.js test/communication-domain.test.js test/scope-domain.test.js",
+    "test": "node --test test/domain.test.js test/features.test.js test/communication-domain.test.js test/scope-domain.test.js test/billing.test.js",
     "test:integration": "node --test --test-concurrency=1 test/integration.test.js",
     "check": "node scripts/check.js"
   },

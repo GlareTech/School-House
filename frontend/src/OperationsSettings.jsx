@@ -9,81 +9,64 @@ const money = (amount, currency = "NGN") =>
 export function WalletPage({ run, onChange }) {
   const [wallet, setWallet] = useState({
       balanceMinor: 0,
+      subscriptionBalanceMinor: 0,
       currency: "NGN",
       transactions: [],
     }),
-    [open, setOpen] = useState(false);
+    [details, setDetails] = useState(null),
+    [amount, setAmount] = useState(""),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
   const load = () =>
-    api("/admin/wallet").then((x) => {
+    Promise.all([api("/admin/wallet"), api("/auth/renewal")]).then(([x, renewal]) => {
       setWallet(x);
+      setDetails(renewal);
       onChange?.(x);
     });
   useEffect(() => {
-    load().catch(() => {});
+    const reference = new URLSearchParams(location.search).get("topup");
+    if (!reference) { load().catch((err) => setError(err.message)); return; }
+    setBusy(true);
+    api("/auth/wallet/topup/verify", { method: "POST", body: { reference } })
+      .then(() => { history.replaceState({}, "", "/app"); return load(); })
+      .catch((err) => setError(err.message))
+      .finally(() => setBusy(false));
   }, []);
+  const topup = async (e) => {
+    e.preventDefault(); setBusy(true); setError("");
+    try {
+      const result = await api("/auth/wallet/topup/initialize", { method: "POST", body: { amountMinor: Math.round(Number(amount) * 100) } });
+      location.assign(result.authorizationUrl);
+    } catch (err) { setError(err.message); setBusy(false); }
+  };
+  const renew = async () => {
+    if (!confirm(`Renew ${details.plan.name} for ${money(details.plan.amountMinor, details.plan.currency)} from verified wallet funds? Any existing automatic card subscription will be stopped.`)) return;
+    setBusy(true); setError("");
+    try { await api("/auth/renewal/wallet", { method: "POST", body: {} }); await load(); }
+    catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  };
   return (
     <div className="operations-page">
       <section className="wallet-hero">
         <span className="eyebrow">SCHOOL WALLET</span>
         <strong>{money(wallet.balanceMinor, wallet.currency)}</strong>
-        <p>Payments recorded in Schoolhouse are credited automatically.</p>
-        <button onClick={() => setOpen(!open)}>
-          {open ? "Close adjustment" : "+ Manual adjustment"}
-        </button>
+        <p>School-fee receipts appear in this total. Only verified Paystack top-ups can pay for a subscription.</p>
       </section>
-      {open && (
-        <section className="panel">
-          <form
-            className="form-grid"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const form = e.currentTarget,
-                d = new FormData(form);
-              run(async () => {
-                await api("/admin/wallet/adjust", {
-                  method: "POST",
-                  body: {
-                    type: d.get("type"),
-                    amountMinor: Math.round(Number(d.get("amount")) * 100),
-                    reference: d.get("reference"),
-                    description: d.get("description"),
-                  },
-                });
-                form.reset();
-                setOpen(false);
-                await load();
-              }, "Wallet updated");
-            }}
-          >
-            <label>
-              Transaction type
-              <select name="type">
-                <option value="CREDIT">Credit</option>
-                <option value="DEBIT">Debit</option>
-              </select>
-            </label>
-            <label>
-              Amount
-              <input
-                name="amount"
-                type="number"
-                min="0.01"
-                step="0.01"
-                required
-              />
-            </label>
-            <label>
-              Reference
-              <input name="reference" required maxLength="100" />
-            </label>
-            <label>
-              Description
-              <input name="description" required maxLength="300" />
-            </label>
-            <button>Save adjustment</button>
+      <section className="panel">
+        <h2>Subscription renewal</h2>
+        {error && <p className="error" role="alert">{error}</p>}
+        <p>Verified top-ups available: <strong>{money(wallet.subscriptionBalanceMinor, wallet.currency)}</strong></p>
+        {details?.plan && <p>{details.plan.name} · {money(details.plan.amountMinor, details.plan.currency)} / {details.plan.interval}</p>}
+        {details?.canPay && <>
+          <form className="form-grid" onSubmit={topup}>
+            <label>Paystack top-up amount<input type="number" min="50" max="1000000" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required /></label>
+            <button disabled={busy}>Add funds with Paystack</button>
           </form>
-        </section>
-      )}
+          <button disabled={busy || !details.plan || wallet.subscriptionBalanceMinor < details.plan.amountMinor} onClick={renew}>Renew from wallet</button>
+          <p className="muted">Wallet renewal stops automatic card billing. You can renew again from your wallet or through Paystack.</p>
+        </>}
+      </section>
       <section className="panel table-wrap">
         <h2>Wallet activity</h2>
         <table>
