@@ -509,7 +509,7 @@ export function authRoutes(app) {
     const transaction = await paystack("/transaction/initialize", {
       method: "POST",
       body: JSON.stringify({
-        email: req.user.email, amount: amountMinor, currency, reference, channels: ["card"],
+        email: req.user.email, amount: amountMinor, currency, reference,
         callback_url: `${config.APP_ORIGINS[0]}/${callback}?topup=${reference}`,
         metadata: { purpose: "schoolhouse_wallet_topup", organizationId: req.user.organizationId, amountMinor },
       }),
@@ -588,7 +588,6 @@ export function authRoutes(app) {
         amount: subscription.plan.amountMinor,
         currency: subscription.plan.currency,
         reference,
-        channels: ["card"],
         callback_url: `${config.APP_ORIGINS[0]}/renew?reference=${reference}`,
         metadata: {
           purpose: "schoolhouse_renewal",

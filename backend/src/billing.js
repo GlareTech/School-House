@@ -32,7 +32,11 @@ export async function paystack(path, options = {}) {
     headers: { Authorization: `Bearer ${config.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json', ...(options.headers || {}) }
   });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok || !result.status) throw new HttpError(502, result.message || 'Payment provider request failed');
+  if (!response.ok || !result.status) {
+    if (/no active channel to process transaction/i.test(String(result.message || '')))
+      throw new HttpError(409, 'No Paystack payment channel is active for this merchant account. Please contact Schoolhouse support.');
+    throw new HttpError(502, result.message || 'Payment provider request failed');
+  }
   return result.data;
 }
 
