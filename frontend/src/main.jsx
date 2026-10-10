@@ -7,6 +7,7 @@ import { BrandImage } from "./BrandImage";
 import { PublicSite } from "./PublicSite";
 import { PlatformAdmin } from "./PlatformAdmin";
 import { UserProfile } from "./UserProfile";
+import { RenewalPage } from "./RenewalPage";
 import "./style.css";
 import "./extras.css";
 import "./progress-report.css";
@@ -14,6 +15,7 @@ import "./saas.css";
 import "./webcam.css";
 import "./auth-refresh.css";
 import "./profile.css";
+import "./renewal.css";
 function App() {
   if (location.pathname.startsWith("/platform")) return <PlatformAdmin />;
   const [user, setUser] = useState(null),
@@ -51,8 +53,8 @@ function App() {
               u.value.user.planFeatures,
             ),
           }));
-          if (!location.pathname.startsWith("/app"))
-            history.replaceState({}, "", "/app");
+          if (u.value.user.renewalRequired) history.replaceState({}, "", `/renew${location.search}`);
+          else if (!location.pathname.startsWith("/app")) history.replaceState({}, "", "/app");
         }
       })
       .finally(() => setLoading(false));
@@ -70,7 +72,7 @@ function App() {
         ...s,
         features: subscriptionFeatures(s.features, data.user.planFeatures),
       }));
-      history.replaceState({}, "", "/app");
+      history.replaceState({}, "", data.user.renewalRequired ? `/renew${location.search}` : "/app");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -90,6 +92,12 @@ function App() {
   if (loading) return <div className="loading">Opening Schoolhouse…</div>;
   if (!user)
     return <PublicSite onLogin={login} loginError={error} loginBusy={busy} />;
+  if (user.renewalRequired)
+    return <RenewalPage user={user} logout={logout} onRenewed={async () => {
+      const result = await api("/auth/me");
+      setUser(result.user);
+      history.replaceState({}, "", "/app");
+    }} />;
   return (
     <>
       <button

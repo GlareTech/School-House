@@ -80,7 +80,7 @@ export async function checkOrigin(req, res, next) {
     throw new HttpError(403, "Untrusted origin");
   next();
 }
-export async function sessionFromCookie(cookie) {
+export async function sessionFromCookie(cookie, allowRenewal = false) {
   if (!cookie || !/^[a-f0-9]{64}$/.test(cookie)) return null;
   const session = await db.session.findUnique({
     where: { id: hash(cookie) },
@@ -103,7 +103,7 @@ export async function sessionFromCookie(cookie) {
   });
   return session &&
     session.expiresAt > new Date() &&
-    tenantAccessAllowed(session.user)
+    (tenantAccessAllowed(session.user) || (allowRenewal && renewalAllowed(session.user)))
     ? session
     : null;
 }
@@ -113,14 +113,17 @@ const tenantAccessAllowed = (user) =>
   (user.organization.subscriptions.length === 0 ||
     user.organization.subscriptions.some(
       (s) =>
-        s.status === "ACTIVE" ||
+        (s.status === "ACTIVE" && (!s.currentPeriodEnd || s.currentPeriodEnd > new Date())) ||
         (s.status === "TRIALING" && s.trialEndsAt > new Date()),
     ));
+const renewalAllowed = (user) => user?.active && user.organization?.active;
 export async function authenticate(req, res, next) {
-  const session = await sessionFromCookie(req.cookies.school_session);
+  const session = await sessionFromCookie(req.cookies.school_session, true);
   if (!session) throw new HttpError(401, "Please sign in");
   req.user = session.user;
   req.session = session;
+  if (!tenantAccessAllowed(session.user) && !["/api/auth/me", "/api/auth/logout", "/api/auth/renewal", "/api/auth/renewal/initialize", "/api/auth/renewal/verify"].includes(req.path))
+    throw new HttpError(402, "Renew your school subscription to continue");
   if (
     !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
     req.headers["x-csrf-token"] !== session.csrf
@@ -164,6 +167,7 @@ export const publicUser = (u) => ({
       ? PERMISSIONS
       : (u.staffRole?.grants || []).map((g) => g.permission),
   planFeatures: u.organization?.subscriptions?.[0]?.plan?.features || null,
+  renewalRequired: !tenantAccessAllowed(u),
 });
 export function authRoutes(app) {
   app.get("/api/auth/challenge", async (_req, res) => {
@@ -425,8 +429,8 @@ export function authRoutes(app) {
     );
     if (!user?.active || !valid)
       throw new HttpError(401, "Invalid email or password");
-    if (!tenantAccessAllowed(user))
-      throw new HttpError(402, "Your school subscription needs attention");
+    if (!tenantAccessAllowed(user) && !renewalAllowed(user))
+      throw new HttpError(402, user.organization?.active ? "Ask your school administrator to renew the subscription" : "This school workspace is unavailable");
     const token = randomBytes(32).toString("hex"),
       csrf = randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + config.SESSION_HOURS * 3600000);
@@ -459,6 +463,48 @@ export function authRoutes(app) {
   app.get("/api/auth/me", authenticate, (req, res) =>
     res.json({ user: publicUser(req.user), csrf: req.session.csrf }),
   );
+  app.get("/api/auth/renewal", authenticate, async (req, res) => {
+    const subscription = req.user.organization.subscriptions[0];
+    if (!subscription) throw new HttpError(404, "No subscription found");
+    res.json({ required: !tenantAccessAllowed(req.user), canPay: req.user.role === "ADMIN", schoolName: req.user.organization.name, plan: { name: subscription.plan.name, amountMinor: subscription.plan.amountMinor, currency: subscription.plan.currency, interval: subscription.plan.interval } });
+  });
+  app.post("/api/auth/renewal/initialize", authenticate, async (req, res) => {
+    if (req.user.role !== "ADMIN") throw new HttpError(403, "School administrator access required");
+    const subscription = req.user.organization.subscriptions[0];
+    if (!subscription) throw new HttpError(404, "No subscription found");
+    if (tenantAccessAllowed(req.user)) throw new HttpError(409, "Subscription is already active");
+    const reference = `renew_${randomBytes(18).toString("hex")}`;
+    const transaction = await paystack("/transaction/initialize", {
+      method: "POST",
+      body: JSON.stringify({
+        email: req.user.email,
+        amount: subscription.plan.amountMinor,
+        currency: subscription.plan.currency,
+        reference,
+        channels: ["card"],
+        callback_url: `${config.APP_ORIGINS[0]}/renew?reference=${reference}`,
+        metadata: { purpose: "schoolhouse_renewal", organizationId: req.user.organizationId, planId: subscription.planId },
+      }),
+    });
+    res.json({ authorizationUrl: transaction.authorization_url });
+  });
+  app.post("/api/auth/renewal/verify", authenticate, async (req, res) => {
+    if (req.user.role !== "ADMIN") throw new HttpError(403, "School administrator access required");
+    const { reference } = z.object({ reference: z.string().regex(/^renew_[a-f0-9]{36}$/) }).strict().parse(req.body);
+    const subscription = req.user.organization.subscriptions[0];
+    if (!subscription) throw new HttpError(404, "No subscription found");
+    const transaction = await paystack(`/transaction/verify/${reference}`);
+    const metadata = typeof transaction.metadata === "string" ? JSON.parse(transaction.metadata) : transaction.metadata;
+    if (transaction.status !== "success" || transaction.reference !== reference || transaction.amount !== subscription.plan.amountMinor || transaction.currency !== subscription.plan.currency || transaction.customer?.email?.toLowerCase() !== req.user.email.toLowerCase() || metadata?.purpose !== "schoolhouse_renewal" || metadata.organizationId !== req.user.organizationId || metadata.planId !== subscription.planId)
+      throw new HttpError(402, "Payment could not be verified for this school");
+    const paidAt = new Date(transaction.paid_at || transaction.paidAt);
+    if (Number.isNaN(paidAt.getTime())) throw new HttpError(502, "Payment date could not be verified");
+    const periodEnd = new Date(paidAt);
+    if (subscription.plan.interval === "annually" || subscription.plan.interval === "annual") periodEnd.setUTCFullYear(periodEnd.getUTCFullYear() + 1);
+    else periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
+    await db.subscription.update({ where: { id: subscription.id }, data: { status: "ACTIVE", currentPeriodStart: paidAt, currentPeriodEnd: periodEnd, nextChargeAt: periodEnd, cancelledAt: null } });
+    res.json({ ok: true, periodEnd });
+  });
   app.patch("/api/auth/profile", authenticate, async (req, res) => {
     const input = z
       .object({

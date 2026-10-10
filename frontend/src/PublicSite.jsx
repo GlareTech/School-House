@@ -109,7 +109,7 @@ function HumanCheck({ challenge, reload }) {
 
 export function PublicSite({ onLogin, loginError, loginBusy }) {
   const params = new URLSearchParams(location.search),
-    [view, setView] = useState(params.has("payment") ? "verify" : "home"),
+    [view, setView] = useState(params.has("payment") ? "verify" : location.pathname === "/renew" ? "signin" : "home"),
     [plans, setPlans] = useState(fallbackPlans),
     [selected, setSelected] = useState("growth"),
     [busy, setBusy] = useState(false),
